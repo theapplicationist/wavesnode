@@ -1,0 +1,17 @@
+{
+  "name": "wavesnode",
+  "version": "1.0.0",
+  "description": "",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "blakejs": "^1.1.0",
+    "byte-buffer": "^1.0.3",
+    "int64-buffer": "^0.1.9"
+  }
+}
