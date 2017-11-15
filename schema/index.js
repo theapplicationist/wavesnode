@@ -2,17 +2,24 @@ var ByteBuffer = require('byte-buffer');
 var Int64BE = require("int64-buffer").Int64BE;
 
 var serialize = function(obj, schema) {
+  var buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
+  return _serialize(buffer, obj, schema)
+}
+
+var _serialize = function(buffer, obj, schema) {
   if(!schema)
     schema = obj.schema
 
-  var buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
+  if(!schema)
+    throw "Schema not found"
+
   for(var prop in obj) {
     if(!schema[prop]){
       console.error(`No such ${prop} property found in schema`)
       continue
     }
     if(schema[prop].schema) {
-      buffer.write(serialize(obj[prop], schema[prop]))
+      _serialize(buffer, obj[prop], schema[prop])
     }
     else {
       schema[prop].encode(buffer, obj[prop])
@@ -71,12 +78,28 @@ module.exports = {
       },
       decode: b => b.read(b.readInt())
     },
-    bytes: function(size) {
+    fixedBytes: function(size) {
       return {
         encode: (b, v) => {
           b.write(v)
         },
         decode: b => b.read(size)
+      }
+    },
+    array: function(schema) {
+      return {
+        encode: (b, v) => {
+          b.writeInt(v.length)
+          v.forEach(i => _serialize(b, i))
+        },
+        decode: b => {
+          var count = b.readInt()
+          var result = []
+          for (var i = 0; i < count; i++) {
+           result.push(deserialize(buffer, schema))           
+          }
+          return result
+        }
       }
     }
   },
@@ -86,11 +109,21 @@ module.exports = {
     return schema
   },
 
+  createMessageSchema: function(contentId, schema) {
+    Object.defineProperty(schema, 'schema', {value: {}})
+    Object.defineProperty(schema, 'contentId', {value: contentId})
+    return schema
+  },
+
   objWithSchema: function(schema, obj) {
     Object.defineProperty(obj, 'schema', {value: schema})
+    if(schema.contentId) {
+      Object.defineProperty(obj, 'contentId', {value: schema.contentId})
+    }
     return obj
   },
 
   serialize,
-  deserialize
+  deserialize,
 }
+

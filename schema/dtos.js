@@ -1,32 +1,17 @@
-var {Schema, createSchema} = require("./index");
+var ByteBuffer = require('byte-buffer');
+var {Schema, createSchema, createMessageSchema, deserialize, serialize} = require("./index");
 
+var GetPeersSchema = createMessageSchema(1, {})
 
-var GetPeersSchema = createSchema({
-
+var IpAddressSchema = createSchema({
+  address: Schema.fixedBytes(4),
+  port: Schema.int,
 })
 
-var payloadCodec = {
-  encode: (b, v) => "",
-  decode: b => {
-    var contentId = b.readByte()
-    var contentLenght = b.readInt()
-    var checksum = b.readInt()
-    
-    switch(contentId) {
-      case 1:
-        return {contentId: 1, content: {}}  
-        break;
-      default:
-    }
-  }
-}
-
-var MessageSchema = createSchema({
-  length: Schema.int,
-  magic: Schema.bytes(4),
-  payload: payloadCodec
+var PeersSchema = createMessageSchema(2, {
+  peers: Schema.array(IpAddressSchema),
 })
-
+  
 var VersionSchema = createSchema({
   major: Schema.int, 
   minor: Schema.int,
@@ -42,13 +27,44 @@ var HandshakeSchema = createSchema({
   timestamp: Schema.long,
 })
 
-function message(payloadSchema, payloadObj) {
-  //var payload = new ByteBuffer()
-  return {
-    length: payload.length,
+var serializeMessage = function(obj, messageSchema) {
+  if(!messageSchema)
+    messageSchema = obj.schema
 
-  }
+  if(!messageSchema)
+    throw "MessageSchema not found"
+
+  if(!messageSchema.contentId)
+    throw "Invalid messageSchema: contentId not found"
+
+  var buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
+  var payload = serialize(obj, messageSchema)
+  buffer.writeInt(305419896) 
+  buffer.writeByte(messageSchema.contentId)
+  buffer.writeInt(payload.length)
+  buffer.writeInt(0)
+  buffer.write(payload)
+
+  var length = buffer.length
+  buffer.prepend(4)
+  buffer.index = 0
+  buffer.writeInt(length)
+
+  return new Buffer(buffer.raw)
 }
 
-module.exports = {VersionSchema, HandshakeSchema, MessageSchema, GetPeersSchema}
+var deserializeMessage = function(buffer) {
+  var length = buffer.readInt()
+  var magic = buffer.readInt()
+  var contentId = buffer.readByte()
+  var payloadLenght = buffer.readInt()
+  var payloadChecksum = buffer.readInt()
   
+  if(contentId == 2){
+    return deserialize(buffer, PeersSchema)
+  }
+
+  return {}
+}
+
+module.exports = {VersionSchema, HandshakeSchema, GetPeersSchema, serializeMessage, deserializeMessage}

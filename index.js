@@ -2,7 +2,7 @@ var net = require('net');
 var ByteBuffer = require('byte-buffer');
 var Int64BE = require("int64-buffer").Int64BE;
 var {Schema, createSchema, objWithSchema, deserialize, serialize} = require("./schema")
-var {VersionSchema, HandshakeSchema, MessageSchema, GetPeersSchema} = require("./schema/dtos")
+var {VersionSchema, HandshakeSchema, GetPeersSchema, serializeMessage, deserializeMessage} = require("./schema/dtos")
 
 Int64BE.prototype.inspect = function(depth, inspectArgs){
   return this.toString()
@@ -21,12 +21,11 @@ var handshake = objWithSchema(HandshakeSchema, {
   timestamp: new Int64BE(new Date().getTime())
 })
 
-var getPeers = objWithSchema(GetPeersSchema, {})
-
-var client = new net.Socket();
-client.connect(6863, '52.28.66.217', function() {
+var client = new net.Socket()
+client.connect(6863, '127.0.0.1', function() {
   console.log('Connected');
   var data = serialize(handshake)
+  console.log(data)
   client.write(data);
 });
 
@@ -39,19 +38,22 @@ function handshakeHandler(data) {
   var buffer = new ByteBuffer(data.buffer)
   var obj = deserialize(buffer, HandshakeSchema)
   console.log(obj)
+  var d = serializeMessage({}, GetPeersSchema)
+  //console.log(d)
+  //client.write(d)
 }
 
 function messageHandler(data) {
+  console.log("data reveiced: ")
   var buffer = new ByteBuffer(data.buffer)
-  var obj = deserialize(buffer, MessageSchema)
-  console.log(obj.payload.contentId)
+  var obj = deserializeMessage(buffer)
+  console.log(obj)
 }
 
 client.once('data', function(data) {
   handshakeHandler(data)
-	client.on('data', messageHandler)
-});
+})
 
 client.on('close', function() {
 	console.log('Connection closed');
-});
+})
