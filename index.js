@@ -22,36 +22,78 @@ var handshake = objWithSchema(HandshakeSchema, {
 })
 
 var client = new net.Socket()
-client.connect(6863, '127.0.0.1', function() {
+client.connect(6863, '127.0.0.1', function(){
   console.log('Connected');
   var data = serialize(handshake)
-  console.log(data)
+  console.log('Sending handshake')
   client.write(data);
+  console.log('Handshake sent')
 });
 
 client.on('error', err => {
+  console.log('Error occured');
   console.log(err)
 })
 
-function handshakeHandler(data) {
-  console.log('Handshake');
-  var buffer = new ByteBuffer(data.buffer)
-  var obj = deserialize(buffer, HandshakeSchema)
-  console.log(obj)
-  var d = serializeMessage({}, GetPeersSchema)
-  //console.log(d)
-  //client.write(d)
+function tryToHandleHandshake(buffer) {
+  buffer.front()
+  if(buffer.available < 22)
+    return
+
+  try {
+    var handshake = deserialize(buffer, HandshakeSchema)
+    buffer.clip(buffer.index)
+    return handshake
+  }
+  catch(ex) {
+    return
+  }
+  
+  var getPeers = serializeMessage({}, GetPeersSchema)
+  client.write(getPeers)
 }
 
-function messageHandler(data) {
-  console.log("data reveiced: ")
-  var buffer = new ByteBuffer(data.buffer)
+function tryToFetchMessage(buffer) {
+  buffer.front()
+
+  if(buffer.available < 4)
+    return
+  
+  var size = buffer.readInt()
+  if(size > buffer.available)
+    return
+
+  var message = buffer.slice(0, size + 4)
+  buffer.clip(message.length)
+
+  return message
+}
+
+function messageHandler(buffer) {
+  console.log("Data reveiced:")
   var obj = deserializeMessage(buffer)
   console.log(obj)
 }
 
-client.once('data', function(data) {
-  handshakeHandler(data)
+var handshakeWasReceived = false;
+var incomingBuffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
+client.on('data', function(data) {
+  
+  incomingBuffer.end()
+  incomingBuffer.write(data.buffer)
+
+  if(!handshakeWasReceived && tryToHandleHandshake(incomingBuffer)) {
+    handshakeWasReceived = true
+    client.write(serializeMessage({}, GetPeersSchema))
+  }
+
+  if(handshakeWasReceived) {
+    do {
+      var messageBuffer = tryToFetchMessage(incomingBuffer)
+      if(messageBuffer)
+        messageHandler(messageBuffer)
+    } while(messageBuffer)
+  }
 })
 
 client.on('close', function() {

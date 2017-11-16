@@ -1,6 +1,14 @@
 var ByteBuffer = require('byte-buffer');
 var Int64BE = require("int64-buffer").Int64BE;
 
+function objWithSchema(schema, obj) {
+  Object.defineProperty(obj, 'schema', {value: schema})
+  if(schema.contentId) {
+    Object.defineProperty(obj, 'contentId', {value: schema.contentId})
+  }
+  return obj
+}
+
 var serialize = function(obj, schema) {
   var buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
   return _serialize(buffer, obj, schema)
@@ -40,7 +48,7 @@ var deserialize = function(buffer, schema) {
     }
   }
 
-  return obj
+  return objWithSchema(schema, obj)
 }
 
 module.exports = {
@@ -96,7 +104,7 @@ module.exports = {
           var count = b.readInt()
           var result = []
           for (var i = 0; i < count; i++) {
-           result.push(deserialize(buffer, schema))           
+           result.push(deserialize(b, schema))           
           }
           return result
         }
@@ -115,14 +123,7 @@ module.exports = {
     return schema
   },
 
-  objWithSchema: function(schema, obj) {
-    Object.defineProperty(obj, 'schema', {value: schema})
-    if(schema.contentId) {
-      Object.defineProperty(obj, 'contentId', {value: schema.contentId})
-    }
-    return obj
-  },
-
+  objWithSchema,
   serialize,
   deserialize,
 }
