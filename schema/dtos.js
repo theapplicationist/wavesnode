@@ -13,6 +13,9 @@ function checksum(bytes){
 var input = Buffer.from('hello world')
 
 var GetPeersSchema = createMessageSchema(1, {})
+var ScoreSchema = size => createMessageSchema(24, {
+  score: Schema.bigInt(size)
+})
 
 var IpAddressSchema = createSchema({
   address: Schema.fixedBytes(4),
@@ -89,8 +92,11 @@ var deserializeMessage = function(buffer) {
     return deserialize(buffer, GetPeersSchema)
   else if(contentId == 2)
     return deserialize(buffer, PeersSchema)
+  else if(contentId == 24)
+    return deserialize(buffer, ScoreSchema(payloadLenght))
   
+
   return {}
 }
 
-module.exports = {VersionSchema, HandshakeSchema, GetPeersSchema, serializeMessage, deserializeMessage}
+module.exports = {VersionSchema, HandshakeSchema, GetPeersSchema, ScoreSchema, serializeMessage, deserializeMessage}

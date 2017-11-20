@@ -1,5 +1,6 @@
 var ByteBuffer = require('byte-buffer');
 var Int64BE = require("int64-buffer").Int64BE;
+var bignum = require('bignum');
 
 function objWithSchema(schema, obj) {
   Object.defineProperty(obj, 'schema', {value: schema})
@@ -86,30 +87,28 @@ module.exports = {
       },
       decode: b => b.read(b.readInt())
     },
-    fixedBytes: function(size) {
-      return {
-        encode: (b, v) => {
-          b.write(v)
-        },
-        decode: b => b.read(size)
-      }
-    },
-    array: function(schema) {
-      return {
-        encode: (b, v) => {
-          b.writeInt(v.length)
-          v.forEach(i => _serialize(b, i))
-        },
-        decode: b => {
-          var count = b.readInt()
-          var result = []
-          for (var i = 0; i < count; i++) {
-           result.push(deserialize(b, schema))           
-          }
-          return result
+    fixedBytes: size => ({
+      encode: (b, v) => b.write(v),
+      decode: b => b.read(size)
+    }),
+    array: schema => ({
+      encode: (b, v) => {
+        b.writeInt(v.length)
+        v.forEach(i => _serialize(b, i))
+      },
+      decode: b => {
+        var count = b.readInt()
+        var result = []
+        for (var i = 0; i < count; i++) {
+          result.push(deserialize(b, schema))           
         }
+        return result
       }
-    }
+    }),
+    bigInt: size => ({
+      encode: (b, v) => b.write(v.toBuffer()),
+      decode: b => bignum.fromBuffer(b.read(size).raw)
+    })
   },
 
   createSchema: function(schema){
