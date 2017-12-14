@@ -1,6 +1,7 @@
 var ByteBuffer = require('byte-buffer');
 var Int64BE = require("int64-buffer").Int64BE;
 var bignum = require('bignum');
+var Base58 = require('base-58');
 
 function objWithSchema(schema, obj) {
   Object.defineProperty(obj, 'schema', {value: schema})
@@ -62,6 +63,10 @@ module.exports = {
       },
       decode: b => b.readString(b.readUnsignedByte())
     },
+    fixedStringBase58: size => ({
+      encode: (b, v) => b.write(Base58.decode(v)),
+      decode: b => Base58.encode(b.read(size).raw)
+    }),
     //Sequence of three ints
     version: {
       encode: (b, v) => v.split('.', 3).forEach(i => b.writeInt(i)),
@@ -91,10 +96,11 @@ module.exports = {
       encode: (b, v) => b.write(v),
       decode: b => b.read(size)
     }),
+    //Int size and schema
     array: schema => ({
       encode: (b, v) => {
         b.writeInt(v.length)
-        v.forEach(i => _serialize(b, i))
+        v.forEach(i => _serialize(b, i, schema))
       },
       decode: b => {
         var count = b.readInt()

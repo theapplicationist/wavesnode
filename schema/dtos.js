@@ -4,13 +4,11 @@ var blake2b = require('blake2b')
 
 function checksum(bytes){
   var hash = blake2b(32)
-  hash.update(bytes.raw)
+  hash.update(bytes)
   var output = new Uint8Array(32)
   hash.digest(output)
   return new ByteBuffer(output).readInt()
 }
-
-var input = Buffer.from('hello world')
 
 var GetPeersSchema = createMessageSchema(1, {})
 var ScoreSchema = size => createMessageSchema(24, {
@@ -24,6 +22,18 @@ var IpAddressSchema = createSchema({
 
 var PeersSchema = createMessageSchema(2, {
   peers: Schema.array(IpAddressSchema),
+})
+
+var signatureSchema = createSchema({
+  signature: Schema.fixedStringBase58(64)
+})
+
+var GetSignaturesSchema = createMessageSchema(20, {
+  signatures: Schema.array(signatureSchema)
+})
+
+var SignaturesSchema = createMessageSchema(21, {
+  signatures: Schema.array(signatureSchema)
 })
   
 var VersionSchema = createSchema({
@@ -44,7 +54,6 @@ var HandshakeSchema = createSchema({
 var Messages = {
   1: GetPeersSchema,
   2: PeersSchema,
-
 }
 
 var serializeMessage = function(obj, messageSchema) {
@@ -78,25 +87,29 @@ var deserializeMessage = function(buffer) {
   var length = buffer.readInt()
   var magic = buffer.readInt()
   var contentId = buffer.readByte()
-  console.log('ContentId: ' + contentId)
   var payloadLenght = buffer.readInt()
   if(payloadLenght > 0) {
     var payloadChecksum = buffer.readInt()
     var payload = buffer.slice(buffer.index, buffer.index + payloadLenght)
-    var computedChecksum = checksum(payload)
+    var computedChecksum = checksum(payload.raw)
     if(payloadChecksum != computedChecksum)
       throw "Invalid checksum"
   }
 
+  var content = {}
   if(contentId == 1)
-    return deserialize(buffer, GetPeersSchema)
+    content = deserialize(buffer, GetPeersSchema)
   else if(contentId == 2)
-    return deserialize(buffer, PeersSchema)
+    content =  deserialize(buffer, PeersSchema)
+  else if(contentId == 21)
+    content =  deserialize(buffer, SignaturesSchema)
   else if(contentId == 24)
-    return deserialize(buffer, ScoreSchema(payloadLenght))
-  
+    content =  deserialize(buffer, ScoreSchema(payloadLenght))
 
-  return {}
+  return {
+    contentId,
+    content
+  }
 }
 
-module.exports = {VersionSchema, HandshakeSchema, GetPeersSchema, ScoreSchema, serializeMessage, deserializeMessage}
+module.exports = {VersionSchema, HandshakeSchema, GetPeersSchema, ScoreSchema, GetSignaturesSchema, SignaturesSchema, serializeMessage, deserializeMessage}

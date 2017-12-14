@@ -1,8 +1,9 @@
 var net = require('net');
 var ByteBuffer = require('byte-buffer');
 var Int64BE = require("int64-buffer").Int64BE;
+var Base58 = require("base-58");
 var {Schema, createSchema, objWithSchema, deserialize, serialize} = require("./schema")
-var {VersionSchema, HandshakeSchema, GetPeersSchema, serializeMessage, deserializeMessage} = require("./schema/dtos")
+var {VersionSchema, HandshakeSchema, GetPeersSchema, GetSignaturesSchema, serializeMessage, deserializeMessage} = require("./schema/dtos")
 
 Int64BE.prototype.inspect = function(depth, inspectArgs){
   return this.toString()
@@ -22,7 +23,7 @@ var handshake = objWithSchema(HandshakeSchema, {
 })
 
 var client = new net.Socket()
-client.connect(6863, '127.0.0.1', function(){
+client.connect(6863, '217.100.219.251', function(){
   console.log('Connected');
   var data = serialize(handshake)
   console.log('Sending handshake')
@@ -48,9 +49,6 @@ function tryToHandleHandshake(buffer) {
   catch(ex) {
     return
   }
-  
-  var getPeers = serializeMessage({}, GetPeersSchema)
-  client.write(getPeers)
 }
 
 function tryToFetchMessage(buffer) {
@@ -84,7 +82,13 @@ client.on('data', function(data) {
 
   if(!handshakeWasReceived && tryToHandleHandshake(incomingBuffer)) {
     handshakeWasReceived = true
-    client.write(serializeMessage({}, GetPeersSchema))
+    //console.log("sending getPeers")
+    //client.write(serializeMessage({}, GetPeersSchema))
+    console.log('sending genesis signature')
+    var m = serializeMessage({
+      signatures: [{ signature: '5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa'}]
+    }, GetSignaturesSchema)
+    client.write(m)
   }
 
   if(handshakeWasReceived) {
