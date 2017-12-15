@@ -10,11 +10,18 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/node": "^8.5.1",
+    "@types/rx-lite": "^4.0.5",
     "base-58": "0.0.1",
     "bignum": "^0.12.5",
     "blake2b": "^2.1.2",
     "blakejs": "^1.1.0",
     "byte-buffer": "^1.0.3",
-    "int64-buffer": "^0.1.9"
+    "int64-buffer": "^0.1.9",
+    "rx-lite": "^4.0.8"
+  },
+  "devDependencies": {
+    "ts-node": "^4.0.2",
+    "typescript": "^2.6.2"
   }
 }
