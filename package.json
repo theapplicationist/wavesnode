@@ -18,7 +18,10 @@
     "blakejs": "^1.1.0",
     "byte-buffer": "^1.0.3",
     "int64-buffer": "^0.1.9",
-    "rx-lite": "^4.0.8"
+    "rx-lite": "^4.0.8",
+    "socket.io": "^2.0.4",
+    "svg.js": "^2.6.3",
+    "ws": "^3.3.3"
   },
   "devDependencies": {
     "ts-node": "^4.0.2",
