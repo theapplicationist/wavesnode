@@ -32,7 +32,19 @@ const CompletablePromise = function <T>() {
   return {
     onComplete: result => { if (!isFinished) { isFinished = true; isExecuted = false; onComplete(result) } },
     onError: error => { if (!isFinished) { isFinished = true; isExecuted = false; onError(error) } },
-    startOrReturnExisting: func => { if (!isExecuted) { isExecuted = true; isFinished = false; promise = newPromise(); func(); } return promise }
+    startOrReturnExisting: func => {
+      if (!isExecuted) {
+        isExecuted = true
+        isFinished = false
+        promise = newPromise()
+        try {
+          func()
+        }
+        catch (ex) {
+          onError(ex)
+        }
+      } return promise
+    }
   }
 }
 
@@ -178,24 +190,51 @@ const createPipe = (ip, signature, height) => {
 
 const blocks = {}
 const blocksByHeight = {}
+var maxHeight = 0
+
 function addBlocks(ids: string[], height: number, fromIp: string, fromSig: string) {
   var prevSig = fromSig
+  var wasModified = false
   ids.forEach(id => {
     if (!blocks[id]) {
       const owners = {}
       owners[fromIp] = 1
-      blocks[id] = {
+      const block = {
         id,
         owners,
         parent: prevSig,
         height: height++,
-      }
+      };
+      blocks[id] = block
+      if (!blocksByHeight[block.height])
+        blocksByHeight[block.height] = {}
+
+      wasModified = true
+      blocksByHeight[block.height][block.id] = block
+
+      if (maxHeight < block.height)
+        maxHeight = block.height
+
     } else {
       blocks[id].owners[fromIp] = 1
     }
     prevSig = id
   })
+  if (wasModified) {
+    broadcastBlocks(30)
+  }
 }
+
+function broadcastBlocks(howManyFromEnd) {
+  const blocksMap = {}
+  for (var i = maxHeight; i >= maxHeight - howManyFromEnd && i > 0; i--) {
+    if (blocksByHeight[i]) {
+      blocksMap[i] = blocksByHeight[i]
+    }
+  }
+  wss.broadcast(blocksMap)
+}
+
 
 const peers =
   ['109.134.67.25',
@@ -241,7 +280,7 @@ const peers =
 async function main() {
   peers.forEach(p => {
     try {
-      createPipe(p, '2YL2gFyUFVFx7hSg4KX35oboQeiqUzfvQLgG7gYq2c7ULaGF9qAkswR48Ezk3HJiiS2cocNR4a5DZ26btocZ2Uvn', 1)
+      createPipe(p, '4bMtjosxJh274CmnQCFV3Ypg7xfqzyAQzkvGz3RW8gua9c7zyJAky7VL44ss8qAUtQuPfoYdMxaPYicwxGn6hM4X', 1)
         .subscribe(
         n => {
           addBlocks(n.signatures, n.height, p, n.fromSig)
@@ -261,14 +300,26 @@ async function main() {
 const ws = require('ws');
 
 const wss = new ws.Server({ port: 8080 });
+
 wss.broadcast = function broadcast(data) {
+  const d = JSON.stringify(data)
   wss.clients.forEach(function each(client) {
     if (client.readyState === ws.OPEN) {
-      client.send(data);
+      try {
+        client.send(d)
+      }
+      catch { }
     }
   });
 };
 
+wss.on('connection', function connection(ws) {
+  try {
+    //ws.send(JSON.stringify(blocksByHeight))
+  }
+  catch { }
+});
+
 console.log("STARTED")
 
-//main()
+main()

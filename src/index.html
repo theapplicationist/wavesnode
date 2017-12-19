@@ -29,8 +29,9 @@
     var rowHeight = 10
     var dotRadius = 5
     var draw = SVG('drawing').size('500', '500')
-    var box = draw.viewbox(0, 0, 500, 500)
     var branches = []
+    var box = draw.viewbox(0, 0, 500, 500)
+
     var colors = ['red', 'green', 'blue']
 
     function numberRange(start, end) {
@@ -55,18 +56,22 @@
       }
     }
 
-    function render(from, to) {
+    function render(from, to, blocksByHeight) {
+      branches = []
+      box.clear()
       var h = 0
-      numberRange(from, to).reverse().forEach(i => {
+
+      for (var i = to; i >= from && i > 0; i--) {
         blocks = blocksByHeight[i]
         if (blocks) {
-          blocks.forEach(b => {
+          Object.keys(blocks).map(b => blocks[b]).forEach(b => {
             var r = renderBlock(b)
             var rect2 = box.rect(dotRadius, dotRadius).move(r.position * rowHeight, h).attr({ fill: r.color })
+            box.text(b.id).move(r.position * rowHeight + rowHeight, h).font({ size: 6 })
           })
         }
         h += rowHeight
-      })
+      }
     }
 
     if ("WebSocket" in window) {
@@ -76,7 +81,12 @@
       };
 
       ws.onmessage = function (evt) {
-        var received_msg = evt.data
+        var data = evt.data
+        blocksByHeight = JSON.parse(data)
+        var keys = Object.keys(blocksByHeight)
+        var maxH = keys[keys.length - 1]
+        console.log("new data: maxH => " + maxH)
+        render(maxH - 50, maxH, blocksByHeight)
       };
 
       ws.onclose = function () {
@@ -87,7 +97,6 @@
       };
     }
 
-    render(1, 10)
   </script>
 </body>
 
