@@ -7,6 +7,9 @@ import { VersionSchema, HandshakeSchema, GetPeersSchema, GetSignaturesSchema } f
 import { serializeMessage, deserializeMessage, objWithSchema, serialize, deserialize } from "./schema/serialization"
 import { connect } from 'net';
 import Rx = require('rx-lite')
+import { triggerAsyncId } from 'async_hooks';
+import { loadavg } from 'os';
+import { Observable } from 'rx-lite';
 
 
 //Int64BE.prototype.inspect = function(depth, inspectArgs){
@@ -94,7 +97,7 @@ const NodeConenction = (ip: string, port: number) => {
 
   function messageHandler(buffer) {
     var response = deserializeMessage(buffer, code => ByCode[code])
-    console.log("messageHandler: contentId -> " + response.contentId)
+    //console.log("messageHandler: contentId -> " + response.contentId)
     if (response.contentId == 21) {
       getSignaturesPromise.onComplete(response.content.signatures.map(x => x.signature))
     }
@@ -161,7 +164,7 @@ const NodeConenction = (ip: string, port: number) => {
 }
 
 const createPipe = (ip, signature, height) => {
-  const timer = Rx.Observable.interval(10000).map(_ => new Date().getTime())
+  const timer = Rx.Observable.interval(1000).map(_ => new Date().getTime())
   const connection = Rx.Observable.create<{ getSignatures: (string) => Promise<string[]> }>(async observer => {
     const c = NodeConenction(ip, 6863)
     await c.connectAndHandshake()
@@ -170,22 +173,39 @@ const createPipe = (ip, signature, height) => {
   })
 
   var lastSignature = signature
+  var loading = false;
 
   return Rx.Observable.combineLatest(timer, connection).flatMap(async x => {
+    if(loading)
+    return { height, signatures: [], fromSig: lastSignature }
+    loading = true
+    console.log("BEGIN"+ip)
     const fromSig = lastSignature
     var signatures = await x[1].getSignatures(fromSig)
-    lastSignature = signatures[signatures.length - 1]
-    if (signatures[0] == fromSig) {
-      signatures.splice(0, 1)
+    var l = signatures.length - 90
+    if (l < 0)
+      l = 0
+    lastSignature = signatures[l]
+
+    if(blocksByHeight[height]){
+      for(var idd in blocksByHeight[height]){
+        if(idd != fromSig){
+          var a = 0
+        }
+      }
     }
+
+    console.log("END"+ip)
+    
+    loading = false 
 
     if (signatures.length == 0)
       return { height, signatures: [], fromSig }
 
     const h = height;
-    height += signatures.length
+    height += l
     return { height: h, signatures, fromSig }
-  }).distinctUntilChanged(x => x.signatures[0]).where(x => x.signatures.length > 0)
+  }).where(x => x.signatures.length > 0)
 }
 
 const blocks = {}
@@ -193,8 +213,13 @@ const blocksByHeight = {}
 var maxHeight = 0
 
 function addBlocks(ids: string[], height: number, fromIp: string, fromSig: string) {
+
+  if (!(ids[0] == fromSig))
+    return
+
   var prevSig = fromSig
   var wasModified = false
+  var h = height
   ids.forEach(id => {
     if (!blocks[id]) {
       const owners = {}
@@ -203,11 +228,15 @@ function addBlocks(ids: string[], height: number, fromIp: string, fromSig: strin
         id,
         owners,
         parent: prevSig,
-        height: height++,
+        height: h,
       };
       blocks[id] = block
-      if (!blocksByHeight[block.height])
+      if (!blocksByHeight[block.height]) {
         blocksByHeight[block.height] = {}
+        if(!blocksByHeight[block.height - 1] && Object.keys(blocksByHeight).length > 1){
+          var a = 0
+        }
+      }
 
       wasModified = true
       blocksByHeight[block.height][block.id] = block
@@ -216,23 +245,35 @@ function addBlocks(ids: string[], height: number, fromIp: string, fromSig: strin
         maxHeight = block.height
 
     } else {
-      blocks[id].owners[fromIp] = 1
+      if (!blocks[id].owners[fromIp]) {
+        blocks[id].owners[fromIp] = 1
+        wasModified = true
+      }
     }
     prevSig = id
+    h++
   })
   if (wasModified) {
-    broadcastBlocks(30)
+    var b = lastBlocks(100)
+    broadcast(server, b)
   }
 }
 
-function broadcastBlocks(howManyFromEnd) {
+function lastBlocks(howManyFromEnd) {
   const blocksMap = {}
-  for (var i = maxHeight; i >= maxHeight - howManyFromEnd && i > 0; i--) {
-    if (blocksByHeight[i]) {
-      blocksMap[i] = blocksByHeight[i]
+  for (var i = maxHeight; i >= maxHeight - howManyFromEnd && i > 1; i--) {
+    if (blocksByHeight[i-1] && blocksByHeight[i]) {
+      var parents = Object.keys(blocksByHeight[i]).map(k => blocksByHeight[i][k].parent)
+      var blocks = Object.keys(blocksByHeight[i-1]).map(k => blocksByHeight[i-1][k]).filter(b => parents.findIndex(p => p==b.id) >= 0)
+      var r = {}
+      blocks.forEach(b => {
+        r[b.id] = b
+      })
+      blocksMap[i-1] = r
     }
   }
-  wss.broadcast(blocksMap)
+
+  return blocksMap
 }
 
 
@@ -280,7 +321,7 @@ const peers =
 async function main() {
   peers.forEach(p => {
     try {
-      createPipe(p, '4bMtjosxJh274CmnQCFV3Ypg7xfqzyAQzkvGz3RW8gua9c7zyJAky7VL44ss8qAUtQuPfoYdMxaPYicwxGn6hM4X', 1)
+      createPipe(p, '5ETidnp9uyH3KmRcRZuqzMMVwgPitFMHxr8K1R197fzu4ATUr2v6vtbfQQpK8XTXdZLhy52HHwY7B18FALGz1MRX', 223343)
         .subscribe(
         n => {
           addBlocks(n.signatures, n.height, p, n.fromSig)
@@ -297,28 +338,51 @@ async function main() {
   })
 }
 
-const ws = require('ws');
+const ws = require("nodejs-websocket")
 
-const wss = new ws.Server({ port: 8080 });
+// Scream server example: "hi" -> "HI!!!" 
+const server = ws.createServer(function (conn) {
+  console.log("New connection")
+  var b = lastBlocks(100)
+  conn.sendText(JSON.stringify(b))
+  conn.on("text", function (str) {
+    console.log("Received " + str)
+  })
+  conn.on("close", function (code, reason) {
+    console.log("Connection closed")
+  })
+  conn.on("error", function (error) {
+    console.log(error)
+  })
+}).listen(8080)
 
-wss.broadcast = function broadcast(data) {
-  const d = JSON.stringify(data)
-  wss.clients.forEach(function each(client) {
-    if (client.readyState === ws.OPEN) {
-      try {
-        client.send(d)
-      }
-      catch { }
-    }
-  });
-};
 
-wss.on('connection', function connection(ws) {
-  try {
-    //ws.send(JSON.stringify(blocksByHeight))
-  }
-  catch { }
-});
+function broadcast(server, data) {
+  const msg = JSON.stringify(data)
+  server.connections.forEach(function (conn) {
+    conn.sendText(msg)
+  })
+}
+
+// const wss = new ws.Server({ port: 8080, timeout: 100 });
+// wss.broadcast = function broadcast(data) {
+//   const d = JSON.stringify(data)
+//   wss.clients.forEach(function each(client) {
+//     if (client.readyState === ws.OPEN) {
+//       try {
+//         client.send(d)
+//       }
+//       catch { }
+//     }
+//   });
+// };
+
+// wss.on('connection', function connection(ws) {
+//   try {
+//     //ws.send(JSON.stringify(blocksByHeight))
+//   }
+//   catch { }
+// });
 
 console.log("STARTED")
 
