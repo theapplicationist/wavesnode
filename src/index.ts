@@ -14,6 +14,7 @@ import { createNodeConnection, NodeConnection } from './nodeConnection'
 import levelup = require('levelup')
 import leveldown = require('leveldown')
 import { config } from './config-test'
+import { peersDiscovery } from './peersDiscovery'
 
 //Int64BE.prototype.inspect = function(depth, inspectArgs){
 //  return this.toString()
@@ -131,48 +132,10 @@ function lastBlocks(howManyFromEnd) {
   return blocksMap
 }
 
-interface Dictionary<TValue> {
-  [key: string]: TValue;
-}
 
-const peers = (initialPeers: string[]) => {
-  const knownPeers = []
-  const connectedPeers: Dictionary<NodeConnection> = {}
-  knownPeers.push(...initialPeers)
-
-  const fetch = () => {
-    const p = knownPeers.shift()
-    knownPeers.push(p)
-    return p
-  }
-
-  return Rx.Observable.create<NodeConnection>(observer => {
-    Rx.Observable.interval(1000).subscribe(async _ => {
-      const peer = fetch()
-      var c = connectedPeers[peer]
-      if(!c) {
-        c = createNodeConnection(peer, 6863)
-        c.onClose(() => {
-          delete connectedPeers[peer]
-        })
-        try {
-          await c.connectAndHandshake()
-          if (!connectedPeers[peer]) {
-            connectedPeers[peer] = c
-            observer.onNext(c)
-          }
-        } catch {}
-      }
-
-      const peers = await c.getPeers()
-      const newPeers = peers.filter(p => !knownPeers.includes(p))
-      knownPeers.unshift(...newPeers)
-    })
-  })
-}
 
 async function main() {
-  peers(config.initialPeers).subscribe(p => {
+  peersDiscovery(config.initialPeers).subscribe(p => {
     console.log(p.ip)
   })
   
