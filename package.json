@@ -18,6 +18,8 @@
     "blakejs": "^1.1.0",
     "byte-buffer": "^1.0.3",
     "int64-buffer": "^0.1.9",
+    "leveldown": "^2.1.1",
+    "levelup": "^2.0.1",
     "nodejs-websocket": "^1.7.1",
     "rx-lite": "^4.0.8",
     "socket.io": "^2.0.4",
