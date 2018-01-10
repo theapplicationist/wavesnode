@@ -116,7 +116,6 @@ export const createNodeConnection = (ip: string, port: number) => {
   const getSignaturesPromise = CompletablePromise<string[]>()
   const getPeersPromise = CompletablePromise<string[]>()
   const incomingBuffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
-  var connection
   var onCloseHandler
 
   client.on('data', function (data) {
@@ -141,13 +140,12 @@ export const createNodeConnection = (ip: string, port: number) => {
   client.on('error', err => {
     //console.log('Error occured');
     //console.log(err)
-    connectAndHandshakePromise.onError("error")
+    connectAndHandshakePromise.onError(err)
   })
 
   client.on('close', function () {
     connectAndHandshakePromise.onError("closed")
     console.log('Connection closed');
-    connection = null
     if (onCloseHandler)
       onCloseHandler()
   })
@@ -157,17 +155,14 @@ export const createNodeConnection = (ip: string, port: number) => {
 
     connectAndHandshake: () => {
       return connectAndHandshakePromise.startOrReturnExisting(() => {
-        connection = client.connect(port, ip, () => {
+        client.connect(port, ip, () => {
           client.write(serialize(handshake));
         });
       })
     },
 
     close: () => {
-      if (connection) {
-        connection.close()
-        connection = null
-      }
+      client.destroy()
     },
 
     onClose: handler => {
