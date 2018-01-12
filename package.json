@@ -19,14 +19,18 @@
     "byte-buffer": "^1.0.3",
     "exit-hook": "^1.1.1",
     "express": "^4.16.2",
+    "guid": "0.0.12",
     "int64-buffer": "^0.1.9",
     "leveldown": "^2.1.1",
     "levelup": "^2.0.1",
+    "linq": "^3.0.9",
+    "node-uuid": "^1.4.8",
     "nodejs-websocket": "^1.7.1",
     "rx-lite": "^4.0.8",
     "socket.io": "^2.0.4",
     "sqlite3": "^3.1.13",
     "svg.js": "^2.6.3",
+    "uuid": "^3.1.0",
     "ws": "^3.3.3"
   },
   "devDependencies": {

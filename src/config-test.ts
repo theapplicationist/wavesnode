@@ -1,4 +1,6 @@
 export const config = {
+  rootSignature: 'eUJEHKQAQG4qbPDNyqjjrq4GmEfJcEeYHUPHvgSENuPQuTQBUZu94RCe1A5o3Te6H8GfcSDxL3dr1s6ohjwojHu',
+  rootHeight: 204802,
   initialPeers:
   ['24.207.12.103',
   '195.37.209.147',

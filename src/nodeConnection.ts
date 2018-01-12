@@ -10,6 +10,7 @@ import Rx = require('rx-lite')
 import { triggerAsyncId } from 'async_hooks';
 import { loadavg } from 'os';
 import { Observable } from 'rx-lite';
+import { setInterval } from 'timers';
 
 export interface NodeConnection {
   //props
@@ -40,11 +41,18 @@ const CompletablePromise = function <T>() {
   return {
     onComplete: result => { if (!isFinished) { isFinished = true; isExecuted = false; onComplete(result) } },
     onError: error => { if (!isFinished) { isFinished = true; isExecuted = false; onError(error) } },
-    startOrReturnExisting: func => {
+    startOrReturnExisting: (func, timeout?) => {
       if (!isExecuted) {
         isExecuted = true
         isFinished = false
         promise = newPromise()
+        if (timeout) {
+          const p = promise
+          setInterval(() => {
+            if (promise == p)
+              onError("timeout")
+          }, timeout)
+        }
         try {
           func()
         }

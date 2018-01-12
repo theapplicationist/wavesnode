@@ -1,4 +1,7 @@
 import { Database } from 'sqlite3'
+import * as linq from "linq";
+import * as guid from "uuid/v4";
+
 var db = new Database('./db');
 
 db.serialize(() => {
@@ -19,14 +22,32 @@ export const BlockStorage = {
           $height
         },
         function (err) {
+          if (err) {
+            console.log(err)
+          }
           if (this.changes && this.changes > 0) {
-            console.log(`NEW BLOCK -> ${$signature}`)
+            console.log(`NEW BLOCK -> ${$signature}, height: ${$height}`)
           }
         })
     })
   },
 
-  getHeight: () => new Promise<Number>((resolve, reject) => {
+  addBranch: (height, length) => {
+    db.serialize(() => {
+      db.get(`SELECT * FROM blocks WHERE height = ${height}`, function (err, row) {
+        let parent = row.signature
+        let h = height
+        for (let i = 0; i < length; i++) {
+          h++
+          const id = `FAKE_BLOCK_${guid()}`
+          BlockStorage.put(id, parent, h)
+          parent = id
+        }
+      })
+    })
+  },
+
+  getHeight: () => new Promise<number>((resolve, reject) => {
     db.serialize(() => {
       db.get(`SELECT MAX(height) as height FROM blocks`, function (err, row) {
         resolve(row.height)
@@ -37,13 +58,52 @@ export const BlockStorage = {
   getRecentBlocks: () => new Promise((resolve, reject) => {
     db.serialize(() => {
       const blocksByHeight = {}
+      const branches = []
+
+      const branchForBlock = (signature, height) => {
+        let branch = branches.find(b => b.blocks[signature] || b.parent == signature)
+        if (!branch) {
+          branch = { id: branches.length, blocks: {}, open: height }
+          branches.push(branch)
+        }
+
+        return branch
+      }
+
+      const checkBranchesAndClose = (signature, height) => {
+        linq.from(branches).where(b => b.parent == signature)
+          .orderByDescending(b => Object.keys(b.blocks).length)
+          .skip(1).forEach(b => b.closed = height)
+      }
+
+      const openBranchesCount = height => branches.filter(b => b.close ? b.close < height : true)
+      .filter(b => b.open > height).filter(b => Object.keys(b.blocks).length > 1).length
+
       db.all(`select * from blocks where height > (select max(height) from blocks) - 100 order by height desc`, function (err, rows) {
-        rows.forEach(row => {
-          if(!blocksByHeight[row.height]) {
-            blocksByHeight[row.height] = {}
+        rows.forEach(block => {
+          if (!blocksByHeight[block.height]) {
+            blocksByHeight[block.height] = {}
           }
-          blocksByHeight[row.height][row.signature] = row
+          checkBranchesAndClose(block.signature, block.height)
+          const branch = branchForBlock(block.signature, block.height)
+          block.branch = branch.id
+          block.position = openBranchesCount(block.height)
+          branch.blocks[block.signature] = true
+          branch.parent = block.parent
+          blocksByHeight[block.height][block.signature] = block
         })
+
+        //branches.forEach(b => b.blocks = Object.keys(b.blocks))
+        const activeBranches = branches.filter(b => Object.keys(b.blocks).length > 1)
+
+        for (let height in blocksByHeight) {
+          const blocksAtHeight = blocksByHeight[height]
+          blocksByHeight[height] = linq.from(Object.keys(blocksAtHeight))
+            .where(id => activeBranches.find(b => b.blocks[id]))
+            .orderByDescending(id => Object.keys(branchForBlock(id, -1).blocks).length)
+            .select(id => blocksAtHeight[id]).toArray()
+        }
+
         resolve(blocksByHeight)
       })
     })

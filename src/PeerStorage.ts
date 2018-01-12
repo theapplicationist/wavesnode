@@ -1,8 +1,7 @@
 import * as exitHook from 'exit-hook'
 import * as fs from 'fs'
+import { config } from './config-test';
 
-const genesisSignature = '5uqnLK3Z9eiot6FyYBfwUnbyid3abicQbAZjz38GQ1Q8XigQMxTK4C1zNkqS1SVw7FqSidbZKxWAKLVoEsp4nNqa'
-const genesisHeight = 1
 const file = fs.existsSync('./peers') ? fs.readFileSync('./peers').toString() : ''
 const peerToSignature = file.length > 0 ? JSON.parse(file) : {}
 
@@ -15,7 +14,7 @@ exitHook(save)
 export const PeerStorage = {
   getPeerSignatureAndHeight: peer => {
     if (!peerToSignature[peer]) {
-      peerToSignature[peer] = { signature: genesisSignature, height: genesisHeight }
+      peerToSignature[peer] = { signature: config.rootSignature, height: config.rootHeight }
     }
     return peerToSignature[peer]
   },
