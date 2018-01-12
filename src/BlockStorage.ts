@@ -19,16 +19,19 @@ export const BlockStorage = {
           $height
         },
         function (err) {
+          if (this.changes && this.changes > 0) {
+            console.log(`NEW BLOCK -> ${$signature}`)
+          }
         })
     })
   }
 }
 
-BlockStorage.put("adfafd", "adfa", 1)
+//BlockStorage.put("adfafd", "adfa", 1)
 
-db.each("SELECT * FROM blocks", function(err, row) {
-  console.log(row);
-});
+//db.each("SELECT * FROM blocks", function(err, row) {
+//  console.log(row);
+//});
 
 //db.close();
 

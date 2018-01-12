@@ -144,8 +144,8 @@ export const createNodeConnection = (ip: string, port: number) => {
   })
 
   client.on('close', function () {
-    connectAndHandshakePromise.onError("closed")
-    console.log('Connection closed');
+    connectAndHandshakePromise.onError('Connection closed')
+    //console.log('Connection closed');
     if (onCloseHandler)
       onCloseHandler()
   })
@@ -156,8 +156,8 @@ export const createNodeConnection = (ip: string, port: number) => {
     connectAndHandshake: () => {
       return connectAndHandshakePromise.startOrReturnExisting(() => {
         client.connect(port, ip, () => {
-          client.write(serialize(handshake));
-        });
+          client.write(serialize(handshake))
+        })
       })
     },
 

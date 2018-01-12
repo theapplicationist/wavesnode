@@ -13,17 +13,20 @@ const save = () => {
 exitHook(save)
 
 export const PeerStorage = {
-  getPeerSignature: peer => {
+  getPeerSignatureAndHeight: peer => {
     if (!peerToSignature[peer]) {
-      peerToSignature[peer] = genesisSignature
+      peerToSignature[peer] = { signature: genesisSignature, height: genesisHeight }
     }
     return peerToSignature[peer]
   },
-  
-  setPeerSignature: (peer, signature) => {
-    peerToSignature[peer] = signature
+
+  setPeerSignatureAndHeight: (peer, signature, height) => {
+    peerToSignature[peer] = { signature, height }
     save()
   },
 
-  allPeers: () => Object.keys(peerToSignature)
+  allPeers: () => {
+    const r = Object.keys(peerToSignature)
+    return r
+  }
 }

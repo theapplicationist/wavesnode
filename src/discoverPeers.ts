@@ -38,8 +38,13 @@ const getConnection = async (peer): Promise<{ isNew: boolean, connection: NodeCo
       await c.connectAndHandshake()
       nodeConnections[peer] = c
       isNew = true
+      if(isNew) {
+        console.log(`NEW PEER -> ${peer}`);
+      }
     }
-    catch { }
+    catch { 
+      console.log(`PEER FAILED -> ${peer}`);
+    }
   }
 
   return { isNew, connection: nodeConnections[peer] }
@@ -57,7 +62,8 @@ export const discoverPeers = (interval: number, initialPeers: string[]): Observa
         if (isNew) {
           o.onNext(connection)
         }
-      } catch  { }
+      } catch  {
+       }
     })
   })
 }

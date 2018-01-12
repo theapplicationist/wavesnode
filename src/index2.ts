@@ -2,10 +2,11 @@ import { PeerStorage } from "./PeerStorage";
 import { discoverPeers } from "./discoverPeers";
 import { config } from "./config-test";
 import { Observable } from "rx-lite";
+import { BlockStorage } from "./BlockStorage";
 
 const peers = []
 peers.push(...config.initialPeers)
-peers.push(PeerStorage.allPeers)
+peers.push(PeerStorage.allPeers().except(peers))
 
 discoverPeers(1000, peers).flatMap(c => {
   const peer = c.ip()
@@ -13,22 +14,31 @@ discoverPeers(1000, peers).flatMap(c => {
   return Observable.interval(5000).flatMap(async _ => {
 
     if (isLoading)
-      return []
+      return { signatures: [], height: 0 }
 
     isLoading = true
-
-    const fromSignature = PeerStorage.getPeerSignature(peer)
-    const signatures = await c.getSignatures(fromSignature)
-    if (signatures[0] == fromSignature) {
-      let l = signatures.length - 90
+    const { signature, height } = PeerStorage.getPeerSignatureAndHeight(peer)
+    const signatures = await c.getSignatures(signature)
+    console.log(`BLOCKS LOADED -> peer: ${peer}, count: ${signatures.length - 1}`)
+    if (signatures[0] == signature) {
+      const l = signatures.length - 90
       if (l > 0) {
-        PeerStorage.setPeerSignature(peer, signatures[l])
+        PeerStorage.setPeerSignatureAndHeight(peer, signatures[l], height + l)
       }
+      isLoading = false
+      return { signatures, height }
     }
 
     isLoading = false
+    return { signatures: [], height: 0 }
+  }).where(x => x.signatures.length > 0)
 
-    return signatures
-  }).where(x => x.length > 0)
-
-}).subscribe()
+}).subscribe(x => {
+  var parent = x.signatures.shift()
+  var height = x.height
+  x.signatures.forEach(s => {
+    height++
+    BlockStorage.put(s, parent, height)
+    parent = s
+  })
+})
