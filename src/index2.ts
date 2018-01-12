@@ -3,6 +3,7 @@ import { discoverPeers } from "./discoverPeers";
 import { config } from "./config-test";
 import { Observable } from "rx-lite";
 import { BlockStorage } from "./BlockStorage";
+import { setTimeout } from "timers";
 
 const peers = []
 peers.push(...config.initialPeers)
@@ -42,3 +43,23 @@ discoverPeers(1000, peers).flatMap(c => {
     parent = s
   })
 })
+
+
+var express = require('express')
+var app = express()
+
+app.use(function(req, res, next) {
+  res.header("Access-Control-Allow-Origin", "*");
+  res.header("Access-Control-Allow-Headers", "Origin, X-Requested-With, Content-Type, Accept");
+  next();
+});
+
+app.get('/', async function (req, res) {
+  //var id = req.query.id; // $_GET["id"]
+
+  const blocks = await BlockStorage.getRecentBlocks()
+  res.setHeader('Content-Type', 'application/json')
+  res.send(JSON.stringify(blocks))
+})
+
+app.listen(3000)
