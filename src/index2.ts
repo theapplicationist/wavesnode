@@ -8,7 +8,7 @@ const peers = []
 peers.push(...config.initialPeers)
 peers.push(PeerStorage.allPeers().except(peers))
 
-if(false)
+//if(false)
 discoverPeers(1000, peers).flatMap(c => {
   const peer = c.ip()
   let isLoading = false
@@ -48,7 +48,6 @@ discoverPeers(1000, peers).flatMap(c => {
     parent = s
   })
 })
-
 
 var express = require('express')
 var app = express()

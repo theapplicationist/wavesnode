@@ -109,19 +109,13 @@ $(document).ready(function () {
 
     keys.reverse()
     keys.forEach(h => {
-      for (var b in blocksByHeight[h]) {
-        var block = blocksByHeight[h][b]
-        if (false)
-          for (var i = 0; i < 3; i++) {
-            if (Math.random() > 0.5) {
-              var copy = {}
-              copy.signature = block.signature + i
-              copy.parent = block.parent + i
-              copy.height = block.height
-              addBlock(copy)
-            }
-          }
-        addBlock(block)
+      var i = 0
+      for (var j = blocksByHeight[h].length - 1; j >= 0; j--) {
+        var block = blocksByHeight[h][j];
+        //addBlock(block)
+        block.branch = { pos: j, total: blocksByHeight[h].length - 1 }
+        blocks.push(block)
+        i++
       }
     })
 

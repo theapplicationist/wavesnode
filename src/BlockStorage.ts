@@ -1,6 +1,7 @@
 import { Database } from 'sqlite3'
 import * as linq from "linq";
 import * as guid from "uuid/v4";
+import { Observable } from 'rx-lite';
 
 var db = new Database('./db');
 
@@ -87,7 +88,6 @@ export const BlockStorage = {
           checkBranchesAndClose(block.signature, block.height)
           const branch = branchForBlock(block.signature, block.height)
           block.branch = branch.id
-          block.position = openBranchesCount(block.height)
           branch.blocks[block.signature] = true
           branch.parent = block.parent
           blocksByHeight[block.height][block.signature] = block
