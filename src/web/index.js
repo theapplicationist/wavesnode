@@ -1,4 +1,28 @@
-var colors = ['red', 'green', 'blue', 'orange', '#f06']
+var colors = ['red', 'green', 'blue', 'orange', '#f06', 'chartreuse', 'brown', 'coral', 'cyan', 'darkred']
+var prevRow
+
+var widthPerBranch = 40
+var heightPerRow = 40
+var marginVertical = 300
+var marginHorizontal= 200
+var thickness = 4
+var dotRadius = 6
+
+function drawDot(canvas, offset, color) {
+  var cx = 10 + widthPerBranch * offset
+  canvas.value += `<circle r="${dotRadius}" cx="${cx}" cy="${(marginVertical * 2 + 20) / 2 + thickness / 2}" fill="#FFFFFF" stroke="${color}" stroke-width="${thickness}"></circle>`
+}
+
+function drawLine(canvas, offetA, color, height, offetB, dotted = false) {
+  var xA = 10 + 40 * offetA
+  var xB = 10 + 40 * offetB
+  var center = (marginVertical * 2 + 20) / 2
+  var d = ''
+  if(dotted)
+  d = 'stroke-dasharray="5, 2"'
+
+  canvas.value += `<line x1="${xB}" y1="${center - (height * heightPerRow - dotRadius - thickness) + 2}" x2="${xA}" y2="${center}" style="stroke:${color};stroke-width:${thickness}" ${d} />`
+}
 
 $(document).ready(function () {
   var columnDefinitions = [
@@ -6,30 +30,44 @@ $(document).ready(function () {
       title: "",
       targets: 0,
       width: 40,
-      data: "branch",
+      data: "draw",
       searchable: false,
       sortable: false,
       render: function (data, type, row, meta) {
 
-        var r = ""
-        for (var i = 0; i <= data.total; i++) {
-          var x = 8 + 40 * i
-          var cx = 10 + 40 * i
-          var c = ''
-          var color = colors[i % colors.length]
-          if (i == data.pos)
-            c = `<circle r="7" cx="${cx}" cy="22" fill="#FFFFFF" stroke="${color}" stroke-width="3"></circle>`
-
-          r += `
-          <rect x="${x}" y="0" width="4" height="40" fill="${color}"></rect>
-          ${c}
-          `
+        if(data.all[data.me].signature == 'FAKE_BLOCK_1a5e3990-2e85-4c1d-83ed-73bcbe502af2')
+        {
+          var a = 0
         }
+
+        var canvas = { value: '' }
+        var me = data.all[data.me]
+        var color = colors[me.branch % colors.length]
+
+        if (prevRow) {
+          for (var i = 0; i < prevRow.all.length; i++) {
+            var element = prevRow.all[i];
+            if(element.parent == me.signature) {
+              var childIndex = i
+                var afterMe = childIndex
+                var beforeMe = data.all.length - (data.me + 1)
+                var lineColor = colors[element.branch % colors.length]
+                
+                drawLine(canvas, data.me, lineColor, 1 + afterMe + beforeMe, childIndex, element.branch != me.branch)
+            }
+          }
+
+        }
+
+        drawDot(canvas, data.me, color)
+
+        if(data.me == 0)
+          prevRow = data
 
         return `
         <div>
-          <svg style="margin-top:-10px;padding:0;margin-bottom:-10px" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" height="40" width="${40 * i}">
-            ${r}
+          <svg style="margin-top:-${marginVertical}px;margin-bottom:-${marginVertical}px;padding:0;margin-right:-${marginHorizontal}" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" height="${marginVertical * 2 + 20}" width="${widthPerBranch * data.all.length + marginHorizontal}">
+            ${canvas.value}
           </svg>
         </div>
         `
@@ -109,13 +147,10 @@ $(document).ready(function () {
 
     keys.reverse()
     keys.forEach(h => {
-      var i = 0
-      for (var j = blocksByHeight[h].length - 1; j >= 0; j--) {
-        var block = blocksByHeight[h][j];
-        //addBlock(block)
-        block.branch = { pos: j, total: blocksByHeight[h].length - 1 }
+      for (let j = blocksByHeight[h].length - 1; j >= 0; j--) {
+        const block = blocksByHeight[h][j];
+        block.draw = { me: j, all: blocksByHeight[h] }
         blocks.push(block)
-        i++
       }
     })
 

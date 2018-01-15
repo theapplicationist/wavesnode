@@ -27,7 +27,7 @@ export const BlockStorage = {
             console.log(err)
           }
           if (this.changes && this.changes > 0) {
-            console.log(`NEW BLOCK -> ${$signature}, height: ${$height}`)
+            console.log(`NEW BLOCK -> ${$signature}, height: ${$height}, parent: ${$parent}`)
           }
         })
     })
@@ -35,7 +35,8 @@ export const BlockStorage = {
 
   addBranch: (height, length) => {
     db.serialize(() => {
-      db.get(`SELECT * FROM blocks WHERE height = ${height}`, function (err, row) {
+      db.all(`SELECT * FROM blocks WHERE height = ${height}`, function (err, rows) {
+        let row = rows[Math.floor(Math.random() * rows.length)]
         let parent = row.signature
         let h = height
         for (let i = 0; i < length; i++) {
