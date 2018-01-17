@@ -45,20 +45,20 @@ exports.fixedBytes = function (size) { return ({
     decode: function (b) { return b.read(size); }
 }); };
 //Int size and schema
-exports.array = function (serialize, deserialize) { return function (schema) { return ({
+exports.array = function (schema) { return ({
     encode: function (b, v) {
         b.writeInt(v.length);
-        v.forEach(function (i) { return serialize(b, i, schema); });
+        v.forEach(function (i) { return schema.encode(b, i); });
     },
     decode: function (b) {
         var count = b.readInt();
         var result = [];
         for (var i = 0; i < count; i++) {
-            result.push(deserialize(b, schema));
+            result.push(schema.decode(b));
         }
         return result;
     }
-}); }; };
+}); };
 exports.bigInt = function (size) { return ({
     encode: function (b, v) { return b.write(v.toBuffer()); },
     decode: function (b) { return Bignum.fromBuffer(b.read(size).raw); }

@@ -5,7 +5,7 @@ import { ISchema } from './ISchema';
 const Base58 = require('base-58');
 
 //Byte size and string contents
-export const string: ISchema<string> = {
+export const string: ISchema = {
   encode: (b, v) => {
     b.writeUnsignedByte(v.length)
     b.writeString(v)
@@ -47,16 +47,16 @@ export const fixedBytes = size => ({
   decode: b => b.read(size)
 })
 //Int size and schema
-export const array = (serialize, deserialize) => schema => ({
+export const array = (schema: ISchema) => ({
   encode: (b, v) => {
     b.writeInt(v.length)
-    v.forEach(i => serialize(b, i, schema))
+    v.forEach(i => schema.encode(b, i))
   },
   decode: b => {
     var count = b.readInt()
     var result = []
     for (var i = 0; i < count; i++) {
-      result.push(deserialize(b, schema))
+      result.push(schema.decode(b))
     }
     return result
   }

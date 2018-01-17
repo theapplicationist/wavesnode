@@ -10,74 +10,31 @@ function checksum(bytes) {
     return new ByteBuffer(output).readInt();
 }
 exports.checksum = checksum;
-function objWithSchema(schema, obj) {
-    Object.defineProperty(obj, 'schema', { value: schema });
-    if (schema.contentId) {
-        Object.defineProperty(obj, 'contentId', { value: schema.contentId });
-    }
-    return obj;
-}
-exports.objWithSchema = objWithSchema;
-exports._serialize = function (buffer, obj, schema) {
-    if (!schema)
-        schema = obj.schema;
-    if (!schema)
-        throw "Schema not found";
-    for (var prop in obj) {
-        if (!schema[prop]) {
-            console.error("No such " + prop + " property found in schema");
-            continue;
+function createSchema(namedSchemas) {
+    var keys = Object.keys(namedSchemas);
+    return {
+        encode: function (buffer, obj) {
+            keys.forEach(function (k) { return namedSchemas[k].encode(buffer, obj[k]); });
+        },
+        decode: function (buffer) {
+            var obj = {};
+            keys.forEach(function (k) { return obj[k] = namedSchemas[k].decode(buffer); });
+            return obj;
         }
-        if (schema[prop].schema) {
-            exports._serialize(buffer, obj[prop], schema[prop]);
-        }
-        else {
-            schema[prop].encode(buffer, obj[prop]);
-        }
-    }
-    return new Buffer(buffer.raw);
-};
-function serialize(obj, schema) {
-    var buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true);
-    return exports._serialize(buffer, obj, schema);
-}
-exports.serialize = serialize;
-function deserialize(buffer, schema) {
-    var obj = {};
-    // Object.keys(schema).forEach(key => {})
-    for (var prop in schema) {
-        if (schema[prop].schema) {
-            obj[prop] = deserialize(buffer, schema[prop]);
-        }
-        else {
-            obj[prop] = schema[prop].decode(buffer);
-        }
-    }
-    return objWithSchema(schema, obj);
-}
-exports.deserialize = deserialize;
-function createSchema(schema) {
-    Object.defineProperty(schema, 'schema', { value: {} });
-    return schema;
+    };
 }
 exports.createSchema = createSchema;
-function createMessageSchema(contentId, schema) {
-    Object.defineProperty(schema, 'schema', { value: {} });
-    Object.defineProperty(schema, 'contentId', { value: contentId });
+function createMessageSchema(contentId, namedSchemas) {
+    var schema = createSchema(namedSchemas);
+    schema[contentId] = contentId;
     return schema;
 }
 exports.createMessageSchema = createMessageSchema;
-function serializeMessage(obj, messageSchema) {
-    if (!messageSchema)
-        messageSchema = obj.schema;
-    if (!messageSchema)
-        throw "MessageSchema not found";
-    if (!messageSchema.contentId)
-        throw "Invalid messageSchema: contentId not found";
+function serializeMessage(obj, schema) {
     var buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true);
-    var payload = serialize(obj, messageSchema);
+    var payload = schema.encode(buffer, obj);
     buffer.writeInt(305419896);
-    buffer.writeByte(messageSchema.contentId);
+    buffer.writeByte(schema.contentId);
     buffer.writeInt(payload.length);
     if (payload.length > 0)
         buffer.writeInt(checksum(payload));
@@ -89,10 +46,7 @@ function serializeMessage(obj, messageSchema) {
     return new Buffer(buffer.raw);
 }
 exports.serializeMessage = serializeMessage;
-function deserializeMessage(buffer, schemaResolver) {
-    var length = buffer.readInt();
-    var magic = buffer.readInt();
-    var contentId = buffer.readByte();
+function deserializeMessage(buffer, schema) {
     var payloadLenght = buffer.readInt();
     if (payloadLenght > 0) {
         var payloadChecksum = buffer.readInt();
@@ -101,15 +55,7 @@ function deserializeMessage(buffer, schemaResolver) {
         if (payloadChecksum != computedChecksum)
             throw "Invalid checksum";
     }
-    var content = {};
-    var schema = schemaResolver(contentId);
-    if (schema) {
-        content = deserialize(buffer, schema);
-    }
-    return {
-        contentId: contentId,
-        content: content
-    };
+    return schema.decode(buffer);
 }
 exports.deserializeMessage = deserializeMessage;
 //# sourceMappingURL=serialization.js.map

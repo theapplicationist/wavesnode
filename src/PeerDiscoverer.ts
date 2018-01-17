@@ -1,6 +1,6 @@
 import { NodeConnection } from './nodeConnection'
 import { Observable } from 'rx-lite';
-import { Dictionary } from './generic/IDictionary';
+import { IDictionary } from './generic/IDictionary';
 
 declare global {
   interface Array<T> {
@@ -21,7 +21,7 @@ if (!Array.prototype.rotate) {
   }
 }
 
-const nodeConnections: Dictionary<NodeConnection> = {}
+const nodeConnections: IDictionary<NodeConnection> = {}
 const knownPeers = []
 
 const getConnection = async (peer): Promise<{ isNew: boolean, connection: NodeConnection }> => {

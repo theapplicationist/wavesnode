@@ -1,8 +1,6 @@
 import ByteBuffer = require('byte-buffer');
 import * as Primitives from './primitives'
-import { createSchema, createMessageSchema, _serialize, deserialize } from './serialization'
-
-const array = Primitives.array(_serialize, deserialize);
+import { createSchema, createMessageSchema } from './serialization'
 
 const IpAddressSchema = createSchema({
   address: Primitives.fixedBytes(4),
@@ -33,13 +31,14 @@ export const ScoreSchema = size => createMessageSchema(24, {
   score: Primitives.bigInt(size)
 })
 export const PeersSchema = createMessageSchema(2, {
-  peers: array(IpAddressSchema),
+  peers: Primitives.array(IpAddressSchema),
 })
 export const GetSignaturesSchema = createMessageSchema(20, {
-  signatures: array(SignatureSchema)
+  signatures: Primitives.array(SignatureSchema)
 })
+
 export const SignaturesSchema = createMessageSchema(21, {
-  signatures: array(SignatureSchema)
+  signatures: Primitives.array(SignatureSchema)
 })
 export const ByCode = {
   1: GetPeersSchema,

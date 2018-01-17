@@ -2,9 +2,9 @@ import net = require('net')
 import ByteBuffer = require('byte-buffer')
 import { Int64BE } from "int64-buffer"
 import Base58 = require("base-58")
-import { ByCode } from './schema/messages'
+import { ByCode, SignaturesSchema, PeersSchema } from './schema/messages'
 import { VersionSchema, HandshakeSchema, GetPeersSchema, GetSignaturesSchema } from "./schema/messages"
-import { serializeMessage, deserializeMessage, objWithSchema, serialize, deserialize } from "./schema/serialization"
+import { serializeMessage, deserializeMessage } from "./schema/serialization"
 import { connect } from 'net';
 import Rx = require('rx-lite')
 import { triggerAsyncId } from 'async_hooks';
@@ -68,14 +68,14 @@ export const NodeConnection = (ip: string, port: number): NodeConnection => {
 
   var handshakeWasReceived = false;
 
-  const handshake = objWithSchema(HandshakeSchema, {
+  const handshake = {
     appName: 'wavesT',
     version: { major: 0, minor: 8, patch: 0 },
     nodeName: 'name',
     nonce: new Int64BE(0),
     declaredAddress: new Uint8Array(0),
     timestamp: new Int64BE(new Date().getTime())
-  })
+  }
 
   function tryToHandleHandshake(buffer) {
     buffer.front()
@@ -83,7 +83,7 @@ export const NodeConnection = (ip: string, port: number): NodeConnection => {
       return
 
     try {
-      var handshake = deserialize(buffer, HandshakeSchema)
+      var handshake = HandshakeSchema.decode(buffer)
       buffer.clip(buffer.index)
       return handshake
     }
@@ -109,13 +109,18 @@ export const NodeConnection = (ip: string, port: number): NodeConnection => {
   }
 
   function messageHandler(buffer) {
-    var response = deserializeMessage(buffer, code => ByCode[code])
+    var length = buffer.readInt();
+    var magic = buffer.readInt();
+    var contentId = buffer.readByte();
+
     //console.log("messageHandler: contentId -> " + response.contentId)
-    if (response.contentId == 21) {
-      getSignaturesPromise.onComplete(response.content.signatures.map(x => x.signature))
+    if (contentId == 21) {
+      const response = deserializeMessage(buffer, SignaturesSchema)
+      getSignaturesPromise.onComplete(response.signatures.map(x => x.signature))
     }
-    if (response.contentId == 2) {
-      getPeersPromise.onComplete(response.content.peers.map(x => x.address.raw.join('.')))
+    if (contentId == 2) {
+      const response = deserializeMessage(buffer, PeersSchema)
+      getPeersPromise.onComplete(response.peers.map(x => x.address.raw.join('.')))
     }
   }
 
