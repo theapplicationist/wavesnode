@@ -64,7 +64,7 @@ const CompletablePromise = function <T>() {
   }
 }
 
-export const createNodeConnection = (ip: string, port: number) => {
+export const NodeConnection = (ip: string, port: number): NodeConnection => {
 
   var handshakeWasReceived = false;
 
@@ -188,5 +188,5 @@ export const createNodeConnection = (ip: string, port: number) => {
           signatures: [{ signature: lastSignature }]
         }, GetSignaturesSchema))
       })
-  } as NodeConnection
+  }
 }

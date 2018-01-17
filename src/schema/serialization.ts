@@ -1,5 +1,7 @@
 import blake2b = require('blake2b')
 import ByteBuffer = require('byte-buffer');
+import { IDictionary } from '../generic/IDictionary';
+import { ISchema } from './ISchema';
 
 export function checksum(bytes) {
   var hash = blake2b(32)
@@ -45,8 +47,9 @@ export function serialize(obj, schema?) {
   return _serialize(buffer, obj, schema)
 }
 
-export function deserialize(buffer, schema) {
+export function deserialize(buffer: ByteBuffer, schema) {
   var obj = {}
+
   // Object.keys(schema).forEach(key => {})
   for (var prop in schema) {
     if (schema[prop].schema) {
@@ -60,9 +63,18 @@ export function deserialize(buffer, schema) {
   return objWithSchema(schema, obj)
 }
 
-export function createSchema(schema) {
-  Object.defineProperty(schema, 'schema', { value: {} })
-  return schema
+export function createSchema(namedSchemas: IDictionary<ISchema>): ISchema {
+  const keys = Object.keys(namedSchemas)
+  return {
+    encode: (buffer, obj) => { 
+      keys.forEach(k => namedSchemas[k].encode(buffer, obj[k])) 
+    },
+    decode: buffer => {
+      const obj = {}
+      keys.forEach(k => obj[k] = namedSchemas[k].decode(buffer))
+      return obj
+    }
+  }
 }
 
 export function createMessageSchema(contentId, schema) {
@@ -115,7 +127,7 @@ export function deserializeMessage(buffer, schemaResolver) {
 
   let schema = schemaResolver(contentId)
 
-  if(schema){
+  if (schema) {
     content = deserialize(buffer, schema)
   }
   return {

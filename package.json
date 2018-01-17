@@ -17,6 +17,7 @@
     "blake2b": "^2.1.2",
     "blakejs": "^1.1.0",
     "byte-buffer": "^1.0.3",
+    "command-line-args": "^4.0.7",
     "exit-hook": "^1.1.1",
     "express": "^4.16.2",
     "guid": "0.0.12",

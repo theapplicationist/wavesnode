@@ -1,5 +1,5 @@
 import { PeerStorage } from "./PeerStorage";
-import { discoverPeers } from "./discoverPeers";
+import { PeerDiscoverer } from "./PeerDiscoverer";
 import { config } from "./config-test";
 import { Observable } from "rx-lite";
 import { BlockStorage } from "./BlockStorage";
@@ -8,7 +8,7 @@ const peers = []
 peers.push(...config.initialPeers)
 peers.push(PeerStorage.allPeers().except(peers))
 
-discoverPeers(1000, peers).flatMap(c => {
+PeerDiscoverer(1000, peers).flatMap(c => {
   const peer = c.ip()
   let isLoading = false
   return Observable.interval(5000).flatMap(async _ => {
@@ -73,4 +73,4 @@ console.log(root)
 
 app.use('/', express.static(root));
 
-app.listen(80)
+app.listen(3000)

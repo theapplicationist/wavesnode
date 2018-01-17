@@ -59,8 +59,8 @@ $(document).ready(function () {
           prevRow = data
 
         return `
-        <div>
-          <svg style="margin-top:-${marginVertical}px;margin-bottom:-${marginVertical}px;padding:0;margin-right:-${marginHorizontal};pointer-event: auto;" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" height="${marginVertical * 2 + 20}" width="${widthPerBranch * data.all.length + marginHorizontal}">
+        <div style="pointer-events: none;">
+          <svg style="margin-top:-${marginVertical}px;margin-bottom:-${marginVertical}px;padding:0;margin-right:-${marginHorizontal};" xmlns="http://www.w3.org/2000/svg" version="1.1" xmlns:xlink="http://www.w3.org/1999/xlink" height="${marginVertical * 2 + 20}" width="${widthPerBranch * data.all.length + marginHorizontal}">
             ${canvas.value}
           </svg>
         </div>
@@ -151,7 +151,7 @@ $(document).ready(function () {
     //renderTable(true)
   });
 
-  $.getJSON('/blocks', function (data) {
+  $.getJSON('http://localhost:3000/blocks', function (data) {
 
     blocksByHeight = data
     keys = Object.keys(blocksByHeight)
@@ -166,7 +166,6 @@ $(document).ready(function () {
     keys.forEach(h => {
       const currentBlocks = blocksByHeight[h]
       const previousBlocks = blocksByHeight[(parseInt(h) + 1).toString()]
-      const nextBlocks = blocksByHeight[(parseInt(h) - 1).toString()]
       for (let j = currentBlocks.length - 1; j >= 0; j--) {
         const block = currentBlocks[j]
         let isClosingBlock = false

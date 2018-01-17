@@ -1,9 +1,6 @@
-import { createNodeConnection, NodeConnection } from './nodeConnection'
+import { NodeConnection } from './nodeConnection'
 import { Observable } from 'rx-lite';
-
-interface Dictionary<TValue> {
-  [key: string]: TValue;
-}
+import { Dictionary } from './generic/IDictionary';
 
 declare global {
   interface Array<T> {
@@ -30,7 +27,7 @@ const knownPeers = []
 const getConnection = async (peer): Promise<{ isNew: boolean, connection: NodeConnection }> => {
   let isNew = false
   if (!nodeConnections[peer]) {
-    const c = createNodeConnection(peer, 6863)
+    const c = NodeConnection(peer, 6863)
     c.onClose(() => {
       delete nodeConnections[peer]
     })
@@ -50,7 +47,7 @@ const getConnection = async (peer): Promise<{ isNew: boolean, connection: NodeCo
   return { isNew, connection: nodeConnections[peer] }
 }
 
-export const discoverPeers = (interval: number, initialPeers: string[]): Observable<NodeConnection> => {
+export const PeerDiscoverer = (interval: number, initialPeers: string[]): Observable<NodeConnection> => {
   knownPeers.push(...initialPeers)
   return Observable.create(o => {
     Observable.interval(interval).subscribe(async _ => {
