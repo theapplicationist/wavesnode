@@ -1,8 +1,24 @@
-var gulp = require('gulp');
+var gulp = require('gulp')
+var clean = require('gulp-clean')
+var ts = require("gulp-typescript");
+var tsProject = ts.createProject("tsconfig.json");
 
-gulp.task('default', defaultTask);
+gulp.task('clean', function () {
+  return gulp.src('dist/', { allowEmpty: true })
+    .pipe(clean())
+})
 
-function defaultTask(done) {
-  // place code for your default task here
-  done();
-}
+gulp.task('compile', function () {
+  return gulp.src('src/**/*.ts', '!src/web/*')
+    .pipe(tsProject())
+    .js.pipe(gulp.dest('dist'))
+})
+
+gulp.task('copy-web', function () {
+  return gulp.src('src/web/*')
+    .pipe(gulp.dest('dist/web'))
+})
+
+gulp.task('default', gulp.series('clean', 'compile', 'copy-web', function (done) {
+  done()
+}))
