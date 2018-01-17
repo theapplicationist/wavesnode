@@ -2,6 +2,8 @@ import blake2b = require('blake2b')
 import ByteBuffer = require('byte-buffer');
 import { IDictionary } from '../generic/IDictionary';
 import { ISchema, IMessageSchema } from './ISchema';
+import { Buffer } from 'buffer';
+import { Z_BUF_ERROR } from 'zlib';
 
 export function checksum(bytes) {
   var hash = blake2b(32)
@@ -15,7 +17,10 @@ export function createSchema(namedSchemas: IDictionary<ISchema>): ISchema {
   const keys = Object.keys(namedSchemas)
   return {
     encode: (buffer, obj) => { 
-      keys.forEach(k => namedSchemas[k].encode(buffer, obj[k])) 
+      keys.forEach(k => {
+        //console.log(`encoding: ${k} = ${obj[k]}`)
+        namedSchemas[k].encode(buffer, obj[k])
+      }) 
     },
     decode: buffer => {
       const obj = {}
@@ -27,14 +32,16 @@ export function createSchema(namedSchemas: IDictionary<ISchema>): ISchema {
 
 export function createMessageSchema(contentId: number, namedSchemas: IDictionary<ISchema>): IMessageSchema {
   const schema = createSchema(namedSchemas)
-  schema[contentId] = contentId
-  return schema as IMessageSchema
+  schema['contentId'] = contentId
+  const r = schema as IMessageSchema
+  return r
 }
 
 export function serializeMessage(obj, schema: IMessageSchema) {
 
   var buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
-  var payload = schema.encode(buffer, obj)
+  schema.encode(buffer, obj)
+  const payload = new Buffer(buffer.raw)
   buffer.writeInt(305419896)
   buffer.writeByte(schema.contentId)
   buffer.writeInt(payload.length)
