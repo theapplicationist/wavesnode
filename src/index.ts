@@ -8,7 +8,6 @@ const peers = []
 peers.push(...config.initialPeers)
 peers.push(PeerStorage.allPeers().except(peers))
 
-if(false)
 discoverPeers(1000, peers).flatMap(c => {
   const peer = c.ip()
   let isLoading = false
@@ -58,11 +57,20 @@ app.use(function (req, res, next) {
   next();
 });
 
-app.get('/', async function (req, res) {
+app.get('/blocks', async function (req, res) {
   //var id = req.query.id; // $_GET["id"]
 
   res.setHeader('Content-Type', 'application/json')
-  res.send(JSON.stringify(await BlockStorage.getRecentBlocks()))
+  res.send(JSON.stringify(await BlockStorage.getRecentBlocks(300)))
 })
 
-app.listen(3000)
+var root = __dirname + "/web/";
+
+console.log(root)
+
+// viewed at http://localhost:8080
+
+
+app.use('/', express.static(root));
+
+app.listen(80)

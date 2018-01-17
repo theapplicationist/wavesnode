@@ -57,7 +57,7 @@ export const BlockStorage = {
     })
   }),
 
-  getRecentBlocks: () => new Promise((resolve, reject) => {
+  getRecentBlocks: (count) => new Promise((resolve, reject) => {
     db.serialize(() => {
       const blocksByHeight = {}
       const branches = []
@@ -81,7 +81,7 @@ export const BlockStorage = {
       const openBranchesCount = height => branches.filter(b => b.close ? b.close < height : true)
       .filter(b => b.open > height).filter(b => Object.keys(b.blocks).length > 1).length
 
-      db.all(`select * from blocks where height > (select max(height) from blocks) - 100 order by height desc`, function (err, rows) {
+      db.all(`select * from blocks where height > (select max(height) from blocks) - ${count} order by height desc`, function (err, rows) {
         rows.forEach(block => {
           if (!blocksByHeight[block.height]) {
             blocksByHeight[block.height] = {}

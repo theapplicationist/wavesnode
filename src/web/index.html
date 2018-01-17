@@ -1,16 +1,31 @@
-<!DOCTYPE html>
+<!DOCTYPE HTML>
 <html>
 
 <head>
-  <title>SVG.js</title>
-  <script type="text/javascript" src="svg.min.js"></script>
+  <!--<link rel="stylesheet" href="app.css">-->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.css">
+  <link rel="stylesheet" href="https://cdn.datatables.net/1.10.16/css/dataTables.semanticui.min.css">
 </head>
 
 <body>
-  <div id="drawing"></div>
-  <script type="text/javascript">
-
-  </script>
+  <div style="margin:10px">
+    <div id="collapseButton" class="ui right floated primary button">
+      Collapse trivial branches
+      <i class="large right compress icon"></i>
+    </div>
+    <div style="clear:both;">
+      <table id="Table" class="ui compact nowrap" style="text-align: left" cellspacing="0" width="100%"></table>
+    </div>
+  </div>
 </body>
+
+<script src="https://code.jquery.com/jquery-1.12.4.js"></script>
+<script src="https://cdn.datatables.net/1.10.16/js/jquery.dataTables.min.js"></script>
+<script src="https://cdn.datatables.net/1.10.16/js/dataTables.semanticui.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/semantic-ui/2.2.13/semantic.min.js"></script>
+<script src="https://d3js.org/d3.v3.min.js"></script>
+<!--<script type="text/javascript" src="graph.js"></script>-->
+<script type="text/javascript" src="linq.min.js"></script>
+<script type="text/javascript" src="index.js"></script>
 
 </html>
