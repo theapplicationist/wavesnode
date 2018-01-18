@@ -3,7 +3,6 @@ import ByteBuffer = require('byte-buffer');
 import { IDictionary } from '../generic/IDictionary';
 import { ISchema, IMessageSchema } from './ISchema';
 import { Buffer } from 'buffer';
-import { Z_BUF_ERROR } from 'zlib';
 
 export function checksum(bytes) {
   var hash = blake2b(32)
