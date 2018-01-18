@@ -3,6 +3,7 @@ import ByteBuffer = require('byte-buffer');
 import { IDictionary } from '../generic/IDictionary';
 import { ISchema, IMessageSchema } from './ISchema';
 import { Buffer } from 'buffer';
+import { MessageCode, Schema } from './messages';
 
 export function checksum(bytes) {
   var hash = blake2b(32)
@@ -15,11 +16,11 @@ export function checksum(bytes) {
 export function createSchema(namedSchemas: IDictionary<ISchema>): ISchema {
   const keys = Object.keys(namedSchemas)
   return {
-    encode: (buffer, obj) => { 
+    encode: (buffer, obj) => {
       keys.forEach(k => {
         //console.log(`encoding: ${k} = ${obj[k]}`)
         namedSchemas[k].encode(buffer, obj[k])
-      }) 
+      })
     },
     decode: buffer => {
       const obj = {}
@@ -36,13 +37,14 @@ export function createMessageSchema(contentId: number, namedSchemas: IDictionary
   return r
 }
 
-export function serializeMessage(obj, schema: IMessageSchema) {
-
+export function serializeMessage(obj, code: MessageCode) {
+  const schema = Schema(code)
   var buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
   schema.encode(buffer, obj)
   const payload = new Buffer(buffer.raw)
+  buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
   buffer.writeInt(305419896)
-  buffer.writeByte(schema.contentId)
+  buffer.writeByte(code)
   buffer.writeInt(payload.length)
   if (payload.length > 0)
     buffer.writeInt(checksum(payload))
@@ -56,7 +58,10 @@ export function serializeMessage(obj, schema: IMessageSchema) {
   return new Buffer(buffer.raw)
 }
 
-export function deserializeMessage(buffer, schema: IMessageSchema) {
+export function deserializeMessage(buffer): { code: MessageCode, content: any } {
+  var length = buffer.readInt()
+  var magic = buffer.readInt()
+  var code = buffer.readByte() as MessageCode
 
   var payloadLenght = buffer.readInt()
   if (payloadLenght > 0) {
@@ -67,5 +72,7 @@ export function deserializeMessage(buffer, schema: IMessageSchema) {
       throw "Invalid checksum"
   }
 
-  return schema.decode(buffer)
+  const schema = Schema(code)
+  if (schema)
+    return { code, content: schema.decode(buffer) }
 }

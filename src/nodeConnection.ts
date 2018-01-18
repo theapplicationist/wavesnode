@@ -2,7 +2,7 @@ import net = require('net')
 import ByteBuffer = require('byte-buffer')
 import { Int64BE } from "int64-buffer"
 import Base58 = require("base-58")
-import { SignaturesSchema, PeersSchema, HandshakeSchema, GetPeersSchema, GetSignaturesSchema } from "./schema/messages"
+import { HandshakeSchema, Schema, MessageCode } from "./schema/messages"
 import { serializeMessage, deserializeMessage } from "./schema/serialization"
 import { connect } from 'net';
 import Rx = require('rx-lite')
@@ -10,6 +10,7 @@ import { triggerAsyncId } from 'async_hooks';
 import { loadavg } from 'os';
 import { Observable } from 'rx-lite';
 import { setInterval } from 'timers';
+import * as Primitives from './schema/primitives';
 
 export interface NodeConnection {
   //props
@@ -76,19 +77,13 @@ export const NodeConnection = (ip: string, port: number): NodeConnection => {
     timestamp: new Int64BE(new Date().getTime())
   }
 
-  const _HandshakeSchema = HandshakeSchema
-  const _PeersSchema = PeersSchema
-  const _SignaturesSchema = SignaturesSchema
-  const _GetSignaturesSchema = GetSignaturesSchema
-  const _GetPeersSchema = GetPeersSchema
-
   function tryToHandleHandshake(buffer) {
     buffer.front()
     if (buffer.available < 22)
       return
 
     try {
-      var handshake = _HandshakeSchema.decode(buffer)
+      var handshake = HandshakeSchema.decode(buffer)
       buffer.clip(buffer.index)
       return handshake
     }
@@ -114,18 +109,14 @@ export const NodeConnection = (ip: string, port: number): NodeConnection => {
   }
 
   function messageHandler(buffer) {
-    var length = buffer.readInt();
-    var magic = buffer.readInt();
-    var contentId = buffer.readByte();
-
-    //console.log("messageHandler: contentId -> " + response.contentId)
-    if (contentId == 21) {
-      const response = deserializeMessage(buffer, _SignaturesSchema)
-      getSignaturesPromise.onComplete(response.signatures.map(x => x.signature))
-    }
-    if (contentId == 2) {
-      const response = deserializeMessage(buffer, _PeersSchema)
-      getPeersPromise.onComplete(response.peers.map(x => x.address.raw.join('.')))
+    const response = deserializeMessage(buffer)
+    if (response) {
+      if (response.code == MessageCode.GetSignaturesResponse) {
+        getSignaturesPromise.onComplete(response.content)
+      }
+      if (response.code == MessageCode.GetPeersResponse) {
+        getPeersPromise.onComplete(response.content.map(x => x.address.raw.join('.')))
+      }
     }
   }
 
@@ -175,7 +166,7 @@ export const NodeConnection = (ip: string, port: number): NodeConnection => {
       return connectAndHandshakePromise.startOrReturnExisting(() => {
         client.connect(port, ip, () => {
           const buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
-          _HandshakeSchema.encode(buffer, handshake)
+          HandshakeSchema.encode(buffer, handshake)
           client.write(new Buffer(buffer.raw))
         })
       })
@@ -191,14 +182,12 @@ export const NodeConnection = (ip: string, port: number): NodeConnection => {
 
     getPeers: () =>
       getPeersPromise.startOrReturnExisting(() => {
-        client.write(serializeMessage({}, _GetPeersSchema))
+        client.write(serializeMessage({}, MessageCode.GetPeers))
       }),
 
     getSignatures: (lastSignature: string) =>
       getSignaturesPromise.startOrReturnExisting(() => {
-        client.write(serializeMessage({
-          signatures: [{ signature: lastSignature }]
-        }, _GetSignaturesSchema))
+        client.write(serializeMessage([lastSignature], MessageCode.GetSignatures))
       })
   }
 }

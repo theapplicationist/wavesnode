@@ -1,48 +1,50 @@
 import ByteBuffer = require('byte-buffer');
-import * as Primitives from './primitives'
+import { array, int, string, byte, bytes, fixedBytes, fixedStringBase58, long, bigInt } from './primitives'
 import { createSchema, createMessageSchema } from './serialization'
+import { EmptySchema } from './ISchema';
 
-const IpAddressSchema = createSchema({
-  address: Primitives.fixedBytes(4),
-  port: Primitives.int,
+const IpAddress = createSchema({
+  address: fixedBytes(4),
+  port: int,
 })
 
 export const VersionSchema = createSchema({
-  major: Primitives.int,
-  minor: Primitives.int,
-  patch: Primitives.int,
-})
-
-const SignatureSchema = createSchema({
-  signature: Primitives.fixedStringBase58(64)
+  major: int,
+  minor: int,
+  patch: int,
 })
 
 export const HandshakeSchema = createSchema({
-  appName: Primitives.string,
+  appName: string,
   version: VersionSchema,
-  nodeName: Primitives.string,
-  nonce: Primitives.long,
-  declaredAddress: Primitives.bytes,
-  timestamp: Primitives.long,
+  nodeName: string,
+  nonce: long,
+  declaredAddress: bytes,
+  timestamp: long,
 })
 
-export const GetPeersSchema = createMessageSchema(1, {})
 export const ScoreSchema = size => createMessageSchema(24, {
-  score: Primitives.bigInt(size)
-})
-export const PeersSchema = createMessageSchema(2, {
-  peers: Primitives.array(IpAddressSchema),
-})
-export const GetSignaturesSchema = createMessageSchema(20, {
-  signatures: Primitives.array(SignatureSchema)
+  score: bigInt(size)
 })
 
-export const SignaturesSchema = createMessageSchema(21, {
-  signatures: Primitives.array(SignatureSchema)
-})
-export const ByCode = {
-  1: GetPeersSchema,
-  2: PeersSchema,
-  20: GetSignaturesSchema,
-  21: SignaturesSchema
+export enum MessageCode {
+  GetPeers = 1,
+  GetPeersResponse = 2,
+  GetSignatures = 20,
+  GetSignaturesResponse = 21,
+}
+
+export function Schema(code: MessageCode) {
+  switch (code) {
+    case MessageCode.GetPeers:
+      return EmptySchema
+    case MessageCode.GetPeersResponse:
+      return array(IpAddress)
+    case MessageCode.GetSignatures:
+      return array(fixedStringBase58(64))
+    case MessageCode.GetSignaturesResponse:
+      return array(fixedStringBase58(64))
+    default:
+      break;
+  }
 }

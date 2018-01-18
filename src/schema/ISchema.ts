@@ -8,3 +8,5 @@ export interface ISchema {
 export interface IMessageSchema extends ISchema {
   contentId: number
 }
+
+export const EmptySchema: ISchema = { encode: (b,o) => {}, decode: b => {} }
