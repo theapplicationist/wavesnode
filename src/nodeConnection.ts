@@ -11,6 +11,8 @@ import { loadavg } from 'os';
 import { Observable } from 'rx-lite';
 import { setInterval } from 'timers';
 import * as Primitives from './schema/primitives';
+import { IDictionary } from './generic/IDictionary';
+import * as LRU from 'lru-cache'
 
 export interface NodeConnection {
   //props
@@ -21,12 +23,19 @@ export interface NodeConnection {
   connectAndHandshake: () => Promise<{}>,
   getPeers: () => Promise<string[]>,
   getSignatures: (lastSignature: string) => Promise<string[]>,
+  getBlock: (signature: string) => Promise<any>
 
   //events
   onClose: (handler: () => any) => any
 }
 
-const CompletablePromise = function <T>() {
+interface ICompletablePromise<T> {
+  onComplete: (result: T) => void,
+  onError: (error: any) => void,
+  startOrReturnExisting: (func: any, timeout?: number) => Promise<T>
+}
+
+const CompletablePromise = function <T>(): ICompletablePromise<T> {
   var onComplete
   var onError
 
@@ -112,20 +121,34 @@ export const NodeConnection = (ip: string, port: number): NodeConnection => {
     const response = deserializeMessage(buffer)
     if (response) {
       if (response.code == MessageCode.GetSignaturesResponse) {
-        getSignaturesPromise.onComplete(response.content)
+        const p = getPromise(MessageCode.GetSignatures, { lastSignature: response.content[0] })
+        if (p)
+          p.onComplete(response.content)
       }
       if (response.code == MessageCode.GetPeersResponse) {
-        getPeersPromise.onComplete(response.content.map(x => x.address.raw.join('.')))
+        getPromise(MessageCode.GetPeers, {}).onComplete(response.content.map(x => x.address.raw.join('.')))
+      }
+      if (response.code == MessageCode.Block) {
+        getPromise(MessageCode.GetBlock, {}).onComplete(response.content)
       }
     }
   }
 
   const client = new net.Socket()
   const connectAndHandshakePromise = CompletablePromise()
-  const getSignaturesPromise = CompletablePromise<string[]>()
-  const getPeersPromise = CompletablePromise<string[]>()
   const incomingBuffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
+  const promises = LRU(100)
   var onCloseHandler
+
+  const getPromise = <T>(code: MessageCode, params: any): ICompletablePromise<T> => {
+    const key = `${code}_${Object.keys(params).map(p => p + '_' + params[p].toString()).join('$')}`
+    let promise = promises.get(key)
+    if (!promise) {
+      promise = CompletablePromise()
+      promises.set(key, promise)
+    }
+    return promise as ICompletablePromise<T>
+  }
 
   client.on('data', function (data) {
     incomingBuffer.end()
@@ -181,13 +204,18 @@ export const NodeConnection = (ip: string, port: number): NodeConnection => {
     },
 
     getPeers: () =>
-      getPeersPromise.startOrReturnExisting(() => {
+      getPromise<string[]>(MessageCode.GetPeers, {}).startOrReturnExisting(() => {
         client.write(serializeMessage({}, MessageCode.GetPeers))
       }),
 
     getSignatures: (lastSignature: string) =>
-      getSignaturesPromise.startOrReturnExisting(() => {
+      getPromise<string[]>(MessageCode.GetSignatures, { lastSignature }).startOrReturnExisting(() => {
         client.write(serializeMessage([lastSignature], MessageCode.GetSignatures))
+      }),
+
+    getBlock: (signature: string) =>
+      getPromise<{}>(MessageCode.GetBlock, {}).startOrReturnExisting(() => {
+        client.write(serializeMessage(signature, MessageCode.GetBlock))
       })
   }
 }

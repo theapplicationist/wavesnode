@@ -13,18 +13,29 @@ export function checksum(bytes) {
   return new ByteBuffer(output).readInt()
 }
 
-export function createSchema(namedSchemas: IDictionary<ISchema>): ISchema {
+
+type SchemaFactory = ((buffer, self: any) => ISchema)
+
+export function createSchema(namedSchemas: IDictionary<ISchema | SchemaFactory>): ISchema {
   const keys = Object.keys(namedSchemas)
   return {
     encode: (buffer, obj) => {
       keys.forEach(k => {
+        let schema = namedSchemas[k]
+        if (typeof schema === 'function')
+          schema = (schema as SchemaFactory)(buffer, obj)
         //console.log(`encoding: ${k} = ${obj[k]}`)
-        namedSchemas[k].encode(buffer, obj[k])
+        schema.encode(buffer, obj[k])
       })
     },
     decode: buffer => {
       const obj = {}
-      keys.forEach(k => obj[k] = namedSchemas[k].decode(buffer))
+      keys.forEach(k => {
+        let schema = namedSchemas[k]
+        if (typeof schema === 'function')
+          schema = (schema as SchemaFactory)(buffer, obj)
+        obj[k] = schema.decode(buffer)
+      })
       return obj
     }
   }

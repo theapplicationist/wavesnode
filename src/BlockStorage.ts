@@ -2,6 +2,7 @@ import { Database } from 'sqlite3'
 import * as linq from "linq";
 import * as guid from "uuid/v4";
 import { Observable } from 'rx-lite';
+import { resolve } from 'dns';
 
 var db = new Database('./db');
 
@@ -10,6 +11,11 @@ db.serialize(() => {
     signature TEXT PRIMARY KEY,
     parent TEXT,
     height INTEGER)`)
+  db.run(`CREATE TABLE IF NOT EXISTS full_blocks (
+    signature TEXT PRIMARY KEY,
+    transactionsCount INTEGER,
+    timestamp INTEGER,
+    baseTarget INTEGER)`)
   db.run(`CREATE INDEX IF NOT EXISTS blockHeightIndex ON blocks(height)`)
 });
 
@@ -28,6 +34,26 @@ export const BlockStorage = {
           }
           if (this.changes && this.changes > 0) {
             console.log(`NEW BLOCK -> ${$signature}, height: ${$height}, parent: ${$parent}`)
+          }
+        })
+    })
+  },
+
+  putBlock: ($signature, $transactionsCount, $timestamp, $baseTarget) => {
+    db.serialize(() => {
+      db.run(`INSERT OR IGNORE INTO full_blocks (signature, transactionsCount, timestamp, baseTarget) VALUES ($signature, $transactionsCount, $timestamp, $baseTarget)`,
+        {
+          $signature,
+          $transactionsCount,
+          $timestamp,
+          $baseTarget
+        },
+        function (err) {
+          if (err) {
+            console.log(err)
+          }
+          if (this.changes && this.changes > 0) {
+            console.log(`BLOCK DETAILS -> ${$signature}, baseTarget: ${$baseTarget}`)
           }
         })
     })
@@ -57,6 +83,18 @@ export const BlockStorage = {
     })
   }),
 
+  getSignatureToFill: () => new Promise<string>((resolve, reject) => {
+    db.serialize(() => {
+      db.all(
+        `select * from (select signature from blocks
+        except
+        select signature from full_blocks) limit 100`, function (err, rows) {
+          let row = rows[Math.floor(Math.random() * rows.length)]
+          resolve(row.signature)
+        })
+    })
+  }),
+
   getRecentBlocks: (count) => new Promise((resolve, reject) => {
     db.serialize(() => {
       const blocksByHeight = {}
@@ -79,7 +117,7 @@ export const BlockStorage = {
       }
 
       const openBranchesCount = height => branches.filter(b => b.close ? b.close < height : true)
-      .filter(b => b.open > height).filter(b => Object.keys(b.blocks).length > 1).length
+        .filter(b => b.open > height).filter(b => Object.keys(b.blocks).length > 1).length
 
       db.all(`select * from blocks where height > (select max(height) from blocks) - ${count} order by height desc`, function (err, rows) {
         rows.forEach(block => {

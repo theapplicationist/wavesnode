@@ -10,6 +10,13 @@ peers.push(PeerStorage.allPeers().except(peers))
 
 PeerDiscoverer(1000, peers).flatMap(c => {
   const peer = c.ip()
+
+  Observable.interval(3000).subscribe(async _ => {
+    const signatureToFill = await BlockStorage.getSignatureToFill()
+    const block = await c.getBlock(signatureToFill)
+    BlockStorage.putBlock(block.signature, block.transactionsCount, block.timestamp.toString(), block.baseTarget.toString())
+  })
+
   let isLoading = false
   return Observable.interval(5000).flatMap(async _ => {
 
@@ -17,6 +24,7 @@ PeerDiscoverer(1000, peers).flatMap(c => {
       return { signatures: [], height: 0 }
 
     isLoading = true
+
     const { signature, height } = PeerStorage.getPeerSignatureAndHeight(peer)
     console.log(`LOADING BLOCKS -> ${peer}`)
     try {

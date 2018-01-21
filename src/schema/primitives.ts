@@ -3,6 +3,7 @@ import { Int64BE } from "int64-buffer"
 import Bignum = require('bignum');
 import { ISchema } from './ISchema';
 const Base58 = require('base-58');
+const Base64 = require('base64-js')
 
 //Byte size and string contents
 export const string: ISchema = {
@@ -16,6 +17,10 @@ export const string: ISchema = {
 export const fixedStringBase58 = size => ({
   encode: (b, v) => b.write(Base58.decode(v)),
   decode: b => Base58.encode(b.read(size).raw)
+})
+export const fixedStringBase64 = size => ({
+  encode: (b, v) => b.write(Base64.toByteArray(v)),
+  decode: b => Base64.fromByteArray(b.read(size).raw)
 })
 //Sequence of three ints
 export const version = {
