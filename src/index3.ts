@@ -15,10 +15,10 @@ const obj = { signatures: [{ signature: sig }] }
 //console.log(buffer.join(','))
 
 async function main() {
-  const c = NodeConnection("52.28.66.217", 6863)
+  const c = NodeConnection("173.239.230.7", 6863, 'W')
   const h = await c.connectAndHandshake()
-  const s = await c.getBlock(sig)
-  console.log(s)
+  //const s = await c.getBlock(sig)
+  console.log(h)
   c.close()
 }
 

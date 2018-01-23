@@ -1,0 +1,1 @@
+export const config = postfix => require(`./config-${postfix}`).config

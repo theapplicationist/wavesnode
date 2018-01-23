@@ -3,6 +3,7 @@ Object.defineProperty(exports, "__esModule", { value: true });
 var int64_buffer_1 = require("int64-buffer");
 var Bignum = require("bignum");
 var Base58 = require('base-58');
+var Base64 = require('base64-js');
 //Byte size and string contents
 exports.string = {
     encode: function (b, v) {
@@ -14,6 +15,10 @@ exports.string = {
 exports.fixedStringBase58 = function (size) { return ({
     encode: function (b, v) { return b.write(Base58.decode(v)); },
     decode: function (b) { return Base58.encode(b.read(size).raw); }
+}); };
+exports.fixedStringBase64 = function (size) { return ({
+    encode: function (b, v) { return b.write(Base64.toByteArray(v)); },
+    decode: function (b) { return Base64.fromByteArray(b.read(size).raw); }
 }); };
 //Sequence of three ints
 exports.version = {
@@ -63,4 +68,3 @@ exports.bigInt = function (size) { return ({
     encode: function (b, v) { return b.write(v.toBuffer()); },
     decode: function (b) { return Bignum.fromBuffer(b.read(size).raw); }
 }); };
-//# sourceMappingURL=primitives.js.map

@@ -9,7 +9,7 @@ import Rx = require('rx-lite')
 import { triggerAsyncId } from 'async_hooks';
 import { loadavg } from 'os';
 import { Observable } from 'rx-lite';
-import { setInterval } from 'timers';
+import { setInterval, setTimeout } from 'timers';
 import * as Primitives from './schema/primitives';
 import { IDictionary } from './generic/IDictionary';
 import * as LRU from 'lru-cache'
@@ -57,7 +57,7 @@ const CompletablePromise = function <T>(): ICompletablePromise<T> {
         promise = newPromise()
         if (timeout) {
           const p = promise
-          setInterval(() => {
+          setTimeout(() => {
             if (promise == p)
               onError("timeout")
           }, timeout)
@@ -73,12 +73,11 @@ const CompletablePromise = function <T>(): ICompletablePromise<T> {
   }
 }
 
-export const NodeConnection = (ip: string, port: number): NodeConnection => {
-
+export const NodeConnection = (ip: string, port: number, networkPrefix: string): NodeConnection => {
   var handshakeWasReceived = false;
 
   const handshake = {
-    appName: 'wavesT',
+    appName: 'waves' + networkPrefix,
     version: { major: 0, minor: 8, patch: 0 },
     nodeName: 'name',
     nonce: new Int64BE(0),
@@ -189,6 +188,7 @@ export const NodeConnection = (ip: string, port: number): NodeConnection => {
       return connectAndHandshakePromise.startOrReturnExisting(() => {
         client.connect(port, ip, () => {
           const buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
+          //console.log(handshake)
           HandshakeSchema.encode(buffer, handshake)
           client.write(new Buffer(buffer.raw))
         })

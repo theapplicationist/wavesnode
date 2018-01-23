@@ -1,6 +1,8 @@
 import { NodeConnection } from './nodeConnection'
 import { Observable } from 'rx-lite';
 import { IDictionary } from './generic/IDictionary';
+import { RecurringTask } from './generic/RecurringTask';
+import { connect } from 'http2';
 
 declare global {
   interface Array<T> {
@@ -24,44 +26,52 @@ if (!Array.prototype.rotate) {
 const nodeConnections: IDictionary<NodeConnection> = {}
 const knownPeers = []
 
-const getConnection = async (peer): Promise<{ isNew: boolean, connection: NodeConnection }> => {
+const getConnection = async (peer, port, networkPrefix): Promise<{ isNew: boolean, connection: NodeConnection }> => {
   let isNew = false
   if (!nodeConnections[peer]) {
-    const c = NodeConnection(peer, 6863)
+    const c = NodeConnection(peer, port, networkPrefix)
     c.onClose(() => {
       delete nodeConnections[peer]
     })
+
     try {
       await c.connectAndHandshake()
       nodeConnections[peer] = c
       isNew = true
-      if(isNew) {
+      if (isNew) {
         console.log(`NEW PEER -> ${peer}`);
       }
     }
-    catch { 
+    catch {
       console.log(`PEER FAILED -> ${peer}`);
     }
   }
-
   return { isNew, connection: nodeConnections[peer] }
 }
 
-export const PeerDiscoverer = (interval: number, initialPeers: string[]): Observable<NodeConnection> => {
+export const PeerDiscoverer = (initialPeers: string[], port: number, networkPrefix: string) => {
   knownPeers.push(...initialPeers)
-  return Observable.create(o => {
-    Observable.interval(interval).subscribe(async _ => {
-      const peer = knownPeers.rotate()[0]
-      const { isNew, connection } = await getConnection(peer)
-      try {
-        const peers = await connection.getPeers()
-        knownPeers.push(...peers.except(knownPeers))
-        if (isNew) {
-          o.onNext(connection)
-        }
-      } catch  {
-       }
-    })
-  })
+  RecurringTask(1, async (done) => {
+    const peer = knownPeers.rotate()[0]
+    try {
+      const { isNew, connection } = await getConnection(peer, port, networkPrefix)
+      const peers = await connection.getPeers()
+      knownPeers.push(...peers.except(knownPeers))
+      if (isNew) {
+        done(connection)
+      }
+    } catch { }
+
+    done()
+  }).subscribe()
+
+  let active = 0
+  return {
+    getConnection: () => {
+      var c = Object.keys(nodeConnections) 
+      active++
+      return nodeConnections[c[active % c.length]]
+    }
+  }
 }
 

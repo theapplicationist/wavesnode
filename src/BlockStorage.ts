@@ -13,9 +13,9 @@ db.serialize(() => {
     height INTEGER)`)
   db.run(`CREATE TABLE IF NOT EXISTS full_blocks (
     signature TEXT PRIMARY KEY,
-    transactionsCount INTEGER,
     timestamp INTEGER,
-    baseTarget INTEGER)`)
+    baseTarget INTEGER,
+    generator TEXT)`)
   db.run(`CREATE INDEX IF NOT EXISTS blockHeightIndex ON blocks(height)`)
 });
 
@@ -39,21 +39,21 @@ export const BlockStorage = {
     })
   },
 
-  putBlock: ($signature, $transactionsCount, $timestamp, $baseTarget) => {
+  putBlock: ($signature, $timestamp, $baseTarget, $generator) => {
     db.serialize(() => {
-      db.run(`INSERT OR IGNORE INTO full_blocks (signature, transactionsCount, timestamp, baseTarget) VALUES ($signature, $transactionsCount, $timestamp, $baseTarget)`,
+      db.run(`INSERT OR IGNORE INTO full_blocks (signature, timestamp, baseTarget, generator) VALUES ($signature, $timestamp, $baseTarget, $generator)`,
         {
           $signature,
-          $transactionsCount,
           $timestamp,
-          $baseTarget
+          $baseTarget,
+          $generator
         },
         function (err) {
           if (err) {
             console.log(err)
           }
           if (this.changes && this.changes > 0) {
-            console.log(`BLOCK DETAILS -> ${$signature}, baseTarget: ${$baseTarget}`)
+            console.log(`BLOCK DETAILS -> ${$signature}, baseTarget: ${$baseTarget}, generator: ${$generator}`)
           }
         })
     })
@@ -86,11 +86,18 @@ export const BlockStorage = {
   getSignatureToFill: () => new Promise<string>((resolve, reject) => {
     db.serialize(() => {
       db.all(
-        `select * from (select signature from blocks
-        except
-        select signature from full_blocks) limit 100`, function (err, rows) {
+        `
+select t1.signature, t3.height from (select t4.signature from blocks as t4 
+except
+select signature from full_blocks) as t1 join blocks as t3 on t1.signature = t3.signature order by t3.height desc limit 5
+        `, function (err, rows) {
           let row = rows[Math.floor(Math.random() * rows.length)]
-          resolve(row.signature)
+          if (row) {
+            resolve(row.signature)
+          }
+          else {
+            resolve(undefined)
+          }
         })
     })
   }),
@@ -119,7 +126,8 @@ export const BlockStorage = {
       const openBranchesCount = height => branches.filter(b => b.close ? b.close < height : true)
         .filter(b => b.open > height).filter(b => Object.keys(b.blocks).length > 1).length
 
-      db.all(`select * from blocks where height > (select max(height) from blocks) - ${count} order by height desc`, function (err, rows) {
+      //    db.all(`select t1.signature, t1.parent, t1.height, t3.baseTarget, t3.timestamp, t3.generator from blocks as t1 left join full_blocks as t3 on t1.signature = t3.signature where height > (select max(height) from blocks) - ${count} and exists (select * from blocks as t2 where t2.parent == t1.signature limit 1) order by height desc`, function (err, rows) {
+      db.all(`select t1.signature, t1.parent, t1.height, t3.baseTarget, t3.timestamp, t3.generator from blocks as t1 left join full_blocks as t3 on t1.signature = t3.signature where height > (select max(height) from blocks) - ${count} order by height desc`, function (err, rows) {
         rows.forEach(block => {
           if (!blocksByHeight[block.height]) {
             blocksByHeight[block.height] = {}

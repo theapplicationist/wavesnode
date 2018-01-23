@@ -14,7 +14,7 @@ export function checksum(bytes) {
 }
 
 
-type SchemaFactory = ((buffer, self: any) => ISchema)
+type SchemaFactory = ((self: any) => ISchema)
 
 export function createSchema(namedSchemas: IDictionary<ISchema | SchemaFactory>): ISchema {
   const keys = Object.keys(namedSchemas)
@@ -23,7 +23,7 @@ export function createSchema(namedSchemas: IDictionary<ISchema | SchemaFactory>)
       keys.forEach(k => {
         let schema = namedSchemas[k]
         if (typeof schema === 'function')
-          schema = (schema as SchemaFactory)(buffer, obj)
+          schema = (schema as SchemaFactory)(obj)
         //console.log(`encoding: ${k} = ${obj[k]}`)
         schema.encode(buffer, obj[k])
       })
@@ -33,7 +33,7 @@ export function createSchema(namedSchemas: IDictionary<ISchema | SchemaFactory>)
       keys.forEach(k => {
         let schema = namedSchemas[k]
         if (typeof schema === 'function')
-          schema = (schema as SchemaFactory)(buffer, obj)
+          schema = (schema as SchemaFactory)(obj)
         obj[k] = schema.decode(buffer)
       })
       return obj
@@ -74,13 +74,13 @@ export function deserializeMessage(buffer): { code: MessageCode, content: any } 
   var magic = buffer.readInt()
   var code = buffer.readByte() as MessageCode
 
-  var payloadLenght = buffer.readInt()
-  if (payloadLenght > 0) {
+  var payloadLength = buffer.readInt()
+  if (payloadLength > 0) {
     var payloadChecksum = buffer.readInt()
-    var payload = buffer.slice(buffer.index, buffer.index + payloadLenght)
-    var computedChecksum = checksum(payload.raw)
-    if (payloadChecksum != computedChecksum)
-      throw "Invalid checksum"
+    var payload = buffer.slice(buffer.index, buffer.index + payloadLength)
+    //var computedChecksum = checksum(payload.raw)
+    //if (payloadChecksum != computedChecksum)
+    //  throw "Invalid checksum"
   }
 
   const schema = Schema(code)

@@ -79,25 +79,50 @@ $(document).ready(function () {
       }
     },
     {
-      title: "signature",
+      title: "timestamp",
       targets: 2,
-      data: "signature",
+      data: "timestamp",
+      width: 140,
       sortable: false,
       render: function (data, type, row, meta) {
-        return `<a href='http://testnet.wavesexplorer.com/blocks/s/${data}'>${data}</a>`
+        if(!data)
+          return '??'
+        var date = new Date(data)
+        var hours = "0" + date.getHours()
+        var minutes = "0" + date.getMinutes()
+        var seconds = "0" + date.getSeconds()
+        var milliseconds = "00" + date.getMilliseconds()
+        return `${hours.substr(-2)}:${minutes.substr(-2)}:${seconds.substr(-2)}.${milliseconds.substr(-3)}`
       }
     },
     {
-      title: "Who knows about this block?",
+      title: "baseTarget",
       targets: 3,
-      data: "owners",
-      visible: false,
+      data: "baseTarget",
+      width: 120,
       sortable: false,
       render: function (data, type, row, meta) {
-        var s = []
-        for (var o in data)
-          s.push(o)
-        return s.join(', ')
+        return `${data ? data : '??'}`
+      }
+    },
+    {
+      title: "signature",
+      targets: 4,
+      data: "signature",
+      width: 400,
+      sortable: false,
+      render: function (data, type, row, meta) {
+        var text = data.substr(0, 20) + '...' + data.substr(data.length-20, data.length);
+        return `<a href='http://wavesexplorer.com/blocks/s/${data}'>${text}</a>`
+      }
+    },
+    {
+      title: "generator",
+      targets: 5,
+      data: "generator",
+      sortable: false,
+      render: function (data, type, row, meta) {
+        return `${data ? data : '??'}`
       }
     }
   ]
@@ -151,7 +176,7 @@ $(document).ready(function () {
     //renderTable(true)
   });
 
-  $.getJSON('http://localhost:3000/blocks', function (data) {
+  $.getJSON('/blocks', function (data) {
 
     blocksByHeight = data
     keys = Object.keys(blocksByHeight)
