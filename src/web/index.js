@@ -85,7 +85,7 @@ $(document).ready(function () {
       width: 140,
       sortable: false,
       render: function (data, type, row, meta) {
-        if(!data)
+        if (!data)
           return '??'
         var date = new Date(data)
         var hours = "0" + date.getHours()
@@ -112,7 +112,7 @@ $(document).ready(function () {
       width: 400,
       sortable: false,
       render: function (data, type, row, meta) {
-        var text = data.substr(0, 20) + '...' + data.substr(data.length-20, data.length);
+        var text = data.substr(0, 20) + '...' + data.substr(data.length - 20, data.length);
         return `<a href='http://wavesexplorer.com/blocks/s/${data}'>${text}</a>`
       }
     },
@@ -122,7 +122,10 @@ $(document).ready(function () {
       data: "generator",
       sortable: false,
       render: function (data, type, row, meta) {
-        return `${data ? data : '??'}`
+        if (!data)
+          return '??'
+
+        return `<a href='http://wavesexplorer.com/address/${data}'>${data}</a>`
       }
     }
   ]

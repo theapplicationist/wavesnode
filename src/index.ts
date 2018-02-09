@@ -6,6 +6,7 @@ import * as fs from 'fs'
 import { open } from "inspector";
 import { RecurringTask } from "./generic/RecurringTask";
 
+
 const optionDefinitions = [
   { name: 'clear', alias: 'c', type: Boolean, defaultValue: false },
   { name: 'net', type: String, multiple: false, defaultOption: true, defaultValue: 'main' },
@@ -97,7 +98,7 @@ app.get('/blocks', async function (req, res) {
   //var id = req.query.id; // $_GET["id"]
   console.log('---get-blocks---')
   res.setHeader('Content-Type', 'application/json')
-  res.send(JSON.stringify(await BlockStorage.getRecentBlocks(300)))
+  res.send(JSON.stringify(await BlockStorage.getRecentBlocks(1000)))
   console.log('---get-blocks-complete---')
 })
 
@@ -107,3 +108,4 @@ app.use('/', express.static(root));
 app.listen(options.port)
 
 console.log(`LISTENING port: ${options.port}, content folder: ${root}`)
+

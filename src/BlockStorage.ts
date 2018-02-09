@@ -3,6 +3,13 @@ import * as linq from "linq";
 import * as guid from "uuid/v4";
 import { Observable } from 'rx-lite';
 import { resolve } from 'dns';
+import * as WavesAPI from 'waves-api'
+
+const Waves = WavesAPI.create(WavesAPI.MAINNET_CONFIG)
+
+function getAddress(pk: string) {
+  return Waves.tools.getAddressFromPublicKey(pk)
+}
 
 var db = new Database('./db');
 
@@ -137,6 +144,9 @@ select signature from full_blocks) as t1 join blocks as t3 on t1.signature = t3.
           block.branch = branch.id
           branch.blocks[block.signature] = true
           branch.parent = block.parent
+          if (block.generator) {
+            block.generator = getAddress(block.generator)
+          }
           blocksByHeight[block.height][block.signature] = block
         })
 
