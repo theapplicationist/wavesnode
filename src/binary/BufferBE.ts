@@ -1,9 +1,11 @@
 import { Buffer } from "buffer";
 import * as Long from "long";
+import * as assert from "assert";
 
 export interface BufferBe {
   position(): number
   seek(position: number): void
+  clear(): void
   raw(): Buffer
   writeLong(v: Long): void
   readLong(): Long
@@ -34,9 +36,15 @@ export const BufferBe = (): BufferBe => {
   return {
 
     position(): number { return position },
-    seek(pos: number): void { position = pos },
+    seek(pos: number): void { 
+      assert(pos <= end, `Position ${pos} is out of bounds, buffer ends at: ${end}`)
+      position = pos 
+    },
+    clear(): void {
+      position = 0
+      end = 0
+    },
     raw(): Buffer { return buffer.slice(0, end) },
-
     writeLong(v: Long) {
       const b1 = v.getLowBits()
       const b2 = v.getHighBits()
