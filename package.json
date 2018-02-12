@@ -11,6 +11,7 @@
   "license": "ISC",
   "dependencies": {
     "@types/chai": "^4.1.2",
+    "@types/highland": "^2.10.6",
     "@types/long": "^3.0.32",
     "@types/node": "^8.5.1",
     "@types/node-telegram-bot-api": "^0.28.2",
@@ -29,6 +30,7 @@
     "guid": "0.0.12",
     "gulp-clean": "^0.4.0",
     "gulp-typescript": "^4.0.0-alpha.1",
+    "highland": "^2.11.1",
     "int64-buffer": "^0.1.9",
     "leveldown": "^2.1.1",
     "levelup": "^2.0.1",

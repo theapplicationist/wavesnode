@@ -12,26 +12,39 @@ suite("BufferBe", () => {
     buffer.clear()
   })
 
+  test("should inialize with buffer properly", () => {
+    const b = BufferBe(Buffer.from([1, 2, 3, 4]))
+    assert.deepEqual(b.raw(), [1, 2, 3, 4])
+    assert.equal(b.position(), 0)
+  })
+
   test("should seek", () => {
     buffer.writeBytes(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8]))
     buffer.seek(4)
-    
+
     assert.equal(buffer.position(), 4)
-  }),
+  })
 
-    test("should increase position when writing", () => {
-      buffer.writeByte(100)
-      buffer.writeBytes(Uint8Array.from([84, 31]))
-
-      assert.equal(buffer.position(), 3)
-      assert.deepEqual(buffer.raw(), [100, 84, 31])
-      assert.equal(buffer.raw().length, 3)
+  test("should throw on invalid seek", () => {
+    buffer.writeInt(1)
+    assert.throws(() => {
+      buffer.seek(100)
     })
+  })
+
+  test("should increase position when writing", () => {
+    buffer.writeByte(100)
+    buffer.writeBytes(Uint8Array.from([84, 31]))
+
+    assert.equal(buffer.position(), 3)
+    assert.deepEqual(buffer.raw(), [100, 84, 31])
+    assert.equal(buffer.raw().length, 3)
+  })
 
   test("should clear", () => {
     buffer.writeString('hello')
     buffer.clear()
-    
+
     assert.equal(buffer.position(), 0)
     assert.equal(buffer.raw().length, 0)
   })

@@ -19,13 +19,13 @@ export interface BufferBe {
   readString(length: number): string
 }
 
-export const BufferBe = (): BufferBe => {
+export const BufferBe = (initialBuffer?: Buffer): BufferBe => {
 
   const encoding = 'utf8'
   const chunk = 2048
-  const buffer = Buffer.allocUnsafe(chunk)
+  const buffer = initialBuffer ? initialBuffer : Buffer.allocUnsafe(chunk)
   let position = 0
-  let end = 0
+  let end = initialBuffer ? initialBuffer.length : 0
 
   const incPos = (i: number) => {
     position += i
@@ -36,9 +36,10 @@ export const BufferBe = (): BufferBe => {
   return {
 
     position(): number { return position },
-    seek(pos: number): void { 
-      assert(pos <= end, `Position ${pos} is out of bounds, buffer ends at: ${end}`)
-      position = pos 
+    seek(pos: number): void {
+      assert(pos >= 0, `Invalid position ${pos}`)
+      assert(pos <= end, `Position ${pos} is out of bounds, buffer ends at ${end}`)
+      position = pos
     },
     clear(): void {
       position = 0
