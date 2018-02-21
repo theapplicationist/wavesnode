@@ -25,10 +25,28 @@ suite("BufferBe", () => {
     assert.equal(buffer.position(), 4)
   })
 
+  test("should seekEnd", () => {
+    buffer.writeBytes(Uint8Array.from([0, 1, 2, 3, 4, 5, 6, 7, 8]))
+    buffer.seekEnd()
+
+    assert.equal(buffer.position(), 9)
+  })
+
+  test("should seek from end with negative values", () => {
+    buffer.writeBytes(Uint8Array.from([0, 1, 2, 0, 0, 0, 1, 7, 8]))
+    buffer.seek(-6)
+
+    assert.equal(buffer.position(), 3)
+    assert.equal(buffer.readInt(), 1)
+  })
+
   test("should throw on invalid seek", () => {
     buffer.writeInt(1)
     assert.throws(() => {
       buffer.seek(100)
+    })
+    assert.throws(() => {
+      buffer.seek(-10)
     })
   })
 
@@ -51,7 +69,8 @@ suite("BufferBe", () => {
 
   test("roundtrip", () => {
     buffer.writeString('buff')
-    buffer.writeByte(231)
+    buffer.writeByte(81)
+    buffer.writeByteUnsigned(231)
     buffer.writeBytes(Uint8Array.from([240, 3, 111]))
     buffer.writeInt(53967)
     buffer.writeLong(Long.fromString('382752837568822'))
@@ -60,12 +79,14 @@ suite("BufferBe", () => {
 
     const string = buffer.readString('buff'.length)
     const byte = buffer.readByte()
+    const byteUnsigned = buffer.readByteUnsigned()
     const bytes = buffer.readBytes(3)
     const int = buffer.readInt()
     const long = buffer.readLong()
 
     assert.equal(string, 'buff')
-    assert.equal(byte, 231)
+    assert.equal(byte, 81)
+    assert.equal(byteUnsigned, 231)
     assert.deepEqual(bytes, [240, 3, 111])
     assert.equal(int, 53967)
     assert.equal(long.toString(), '382752837568822')

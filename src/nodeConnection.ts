@@ -2,7 +2,7 @@ import net = require('net')
 import ByteBuffer = require('byte-buffer')
 import { Int64BE } from "int64-buffer"
 import Base58 = require("base-58")
-import { HandshakeSchema, Schema, MessageCode } from "./schema/messages"
+import { HandshakeSchema, Schema, MessageCode, IHandshake } from "./schema/messages"
 import { serializeMessage, deserializeMessage } from "./schema/serialization"
 import { connect } from 'net';
 import Rx = require('rx-lite')
@@ -13,6 +13,9 @@ import { setInterval, setTimeout } from 'timers';
 import * as Primitives from './schema/primitives';
 import { IDictionary } from './generic/IDictionary';
 import * as LRU from 'lru-cache'
+import { BufferBe } from './binary/BufferBE';
+import { IncomingBuffer } from './binary/IncomingBuffer';
+import * as Long from 'long';
 
 export interface NodeConnection {
   //props
@@ -20,7 +23,7 @@ export interface NodeConnection {
 
   //methods
   close: () => any,
-  connectAndHandshake: () => Promise<{}>,
+  connectAndHandshake: () => Promise<IHandshake>,
   getPeers: () => Promise<string[]>,
   getSignatures: (lastSignature: string) => Promise<string[]>,
   getBlock: (signature: string) => Promise<any>
@@ -78,21 +81,31 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
 
   const handshake = {
     appName: 'waves' + networkPrefix,
-    version: { major: 0, minor: 8, patch: 0 },
+    version: { major: 0, minor: 9, patch: 0 },
     nodeName: 'name',
-    nonce: new Int64BE(0),
-    declaredAddress: new Uint8Array(0),
-    timestamp: new Int64BE(new Date().getTime())
+    nonce: Long.fromInt(0),
+    declaredAddress: [],
+    timestamp: Long.fromNumber(new Date().getTime())
   }
 
-  function tryToHandleHandshake(buffer) {
-    buffer.front()
-    if (buffer.available < 22)
+  function tryToHandleHandshake(buffer: IncomingBuffer) {
+    if (buffer.length() < 34)
+      return
+
+    const appNameLen = buffer.getByte(0)
+    if (appNameLen <= 0) return
+    const nodeNameLen = buffer.getByte(13 + appNameLen)
+    if (nodeNameLen < 0) return
+    const declaredAddressLen = buffer.getInt(22 + nodeNameLen + appNameLen)
+    const totalHandshakeLen = 34 + appNameLen + nodeNameLen + declaredAddressLen
+
+    const handshakeBuffer = buffer.tryGet(totalHandshakeLen)
+
+    if (!handshakeBuffer)
       return
 
     try {
-      var handshake = HandshakeSchema.decode(buffer)
-      buffer.clip(buffer.index)
+      var handshake = HandshakeSchema.decode(handshakeBuffer)
       return handshake
     }
     catch (ex) {
@@ -100,23 +113,20 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
     }
   }
 
-  function tryToFetchMessage(buffer) {
-    buffer.front()
-
-    if (buffer.available < 4)
+  function tryToFetchMessage(buffer: IncomingBuffer): BufferBe {
+    const available = buffer.length();
+    if (available < 4)
       return
 
-    var size = buffer.readInt()
-    if (size > buffer.available)
+    var size = buffer.getInt()
+    if (size > available)
       return
 
-    var message = buffer.slice(0, size + 4)
-    buffer.clip(message.length)
-
-    return message
+    var messageBuffer = buffer.tryGet(size + 4)
+    return messageBuffer
   }
 
-  function messageHandler(buffer) {
+  function messageHandler(buffer: BufferBe) {
     const response = deserializeMessage(buffer)
     if (response) {
       if (response.code == MessageCode.GetSignaturesResponse) {
@@ -125,7 +135,9 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
           p.onComplete(response.content)
       }
       if (response.code == MessageCode.GetPeersResponse) {
-        getPromise(MessageCode.GetPeers, {}).onComplete(response.content.map(x => x.address.raw.join('.')))
+        getPromise(MessageCode.GetPeers, {}).onComplete(response.content.map(x => {
+          x.address.join('.')
+      }))
       }
       if (response.code == MessageCode.Block) {
         getPromise(MessageCode.GetBlock, {}).onComplete(response.content)
@@ -134,8 +146,8 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
   }
 
   const client = new net.Socket()
-  const connectAndHandshakePromise = CompletablePromise()
-  const incomingBuffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
+  const connectAndHandshakePromise = CompletablePromise<IHandshake>()
+  const incomingBuffer = IncomingBuffer()
   const promises = LRU(100)
   var onCloseHandler
 
@@ -150,8 +162,7 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
   }
 
   client.on('data', function (data) {
-    incomingBuffer.end()
-    incomingBuffer.write(data.buffer)
+    incomingBuffer.write(data)
 
     const handshakeResponse = tryToHandleHandshake(incomingBuffer)
     if (!handshakeWasReceived && handshakeResponse) {
@@ -187,10 +198,11 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
     connectAndHandshake: () => {
       return connectAndHandshakePromise.startOrReturnExisting(() => {
         client.connect(port, ip, () => {
-          const buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
-          //console.log(handshake)
+          console.log("connected")
+          const buffer = BufferBe()
           HandshakeSchema.encode(buffer, handshake)
-          client.write(new Buffer(buffer.raw))
+          console.log(buffer.raw())
+          client.write(buffer.raw())
         })
       })
     },
@@ -205,7 +217,8 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
 
     getPeers: () =>
       getPromise<string[]>(MessageCode.GetPeers, {}).startOrReturnExisting(() => {
-        client.write(serializeMessage({}, MessageCode.GetPeers))
+        const m = serializeMessage({}, MessageCode.GetPeers)
+        client.write(m)
       }),
 
     getSignatures: (lastSignature: string) =>

@@ -1,7 +1,10 @@
 import ByteBuffer = require('byte-buffer');
 import { array, int, string, byte, bytes, fixedBytes, fixedStringBase58, long, bigInt, fixedStringBase64 } from './primitives'
-import { createSchema, createMessageSchema } from './serialization'
+import { createSchema, createMessageSchema } from './ISchema'
 import { EmptySchema, LeaveBytesFromEnd } from './ISchema';
+import { Buffer } from 'buffer';
+import { version } from 'punycode';
+import * as Long from 'long';
 
 const IpAddress = createSchema({
   address: fixedBytes(4),
@@ -25,13 +28,28 @@ const BlockSchema = createSchema({
   signature: fixedStringBase58(64)
 })
 
-export const VersionSchema = createSchema({
+export interface IVersion {
+  major: number,
+  minor: number,
+  patch: number
+}
+
+export const VersionSchema = createSchema<IVersion>({
   major: int,
   minor: int,
   patch: int,
 })
 
-export const HandshakeSchema = createSchema({
+export interface IHandshake {
+  appName: string
+  version: IVersion
+  nodeName: string
+  nonce: Long
+  declaredAddress: Uint8Array | number[]
+  timestamp: Long
+}
+
+export const HandshakeSchema = createSchema<IHandshake>({
   appName: string,
   version: VersionSchema,
   nodeName: string,

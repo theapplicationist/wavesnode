@@ -25,10 +25,24 @@ suite("IncomingBuffer", () => {
     const b2 = Buffer.from([0, 10])
 
     incomingBuffer.write(b1)
-    assert.equal(incomingBuffer.getInt(), -1)
+    assert.equal(incomingBuffer.getInt(), undefined)
 
     incomingBuffer.write(b2)
     assert.equal(incomingBuffer.getInt(), 10)
+  })
+
+  test('should read byte if possible', () => {
+    assert.equal(incomingBuffer.getByte(), undefined)
+    incomingBuffer.write(Buffer.from([10]))
+    assert.equal(incomingBuffer.getByte(), 10)
+  })
+
+  test('should read int on offset', () => {
+    incomingBuffer.write(Buffer.from([0, 0]))
+    incomingBuffer.write(Buffer.from([0, 1, 0, 0]))
+    incomingBuffer.write(Buffer.from([0, 2]))
+    assert.equal(incomingBuffer.getInt(0), 1)
+    assert.equal(incomingBuffer.getInt(4), 2)
   })
 
   test('should get bytes when availabe', () => {

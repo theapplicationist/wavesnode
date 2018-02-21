@@ -27,6 +27,7 @@
     "exit-hook": "^1.1.1",
     "expect": "^22.2.2",
     "express": "^4.16.2",
+    "fs": "0.0.1-security",
     "guid": "0.0.12",
     "gulp-clean": "^0.4.0",
     "gulp-typescript": "^4.0.0-alpha.1",

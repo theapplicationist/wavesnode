@@ -5,14 +5,20 @@ import * as assert from "assert";
 export interface BufferBe {
   position(): number
   seek(position: number): void
+  seekEnd(): void
   clear(): void
-  raw(): Buffer
+  raw(from?: number, to?: number): Buffer
+  length(): number
+  writeZeros(length: number): void
   writeLong(v: Long): void
   readLong(): Long
   writeInt(v: number): void
   readInt(): number
   writeByte(v: number): void
   readByte(): number
+  writeBytes(v: Uint8Array | number[]): void
+  writeByteUnsigned(v: number): void
+  readByteUnsigned(): number
   writeBytes(v: Uint8Array): void
   readBytes(length: number): Uint8Array
   writeString(v: string): void
@@ -34,18 +40,29 @@ export const BufferBe = (initialBuffer?: Buffer): BufferBe => {
   }
 
   return {
-
     position(): number { return position },
     seek(pos: number): void {
-      assert(pos >= 0, `Invalid position ${pos}`)
-      assert(pos <= end, `Position ${pos} is out of bounds, buffer ends at ${end}`)
+      assert(Math.abs(pos) <= end, `Position ${pos} is out of bounds, buffer ends at ${end}`)
+      if (pos < 0)
+        pos = end + pos
       position = pos
+    },
+    seekEnd(): void {
+      position = end
     },
     clear(): void {
       position = 0
       end = 0
     },
-    raw(): Buffer { return buffer.slice(0, end) },
+    raw(from?: number, to?: number) {
+      if (!from) from = 0
+      if (!to) to = end
+      return buffer.slice(from, to)
+    },
+    length(): number { return end },
+    writeZeros(length: number) {
+      incPos(length)
+    },
     writeLong(v: Long) {
       const b1 = v.getLowBits()
       const b2 = v.getHighBits()
@@ -69,15 +86,24 @@ export const BufferBe = (initialBuffer?: Buffer): BufferBe => {
       return r
     },
     writeByte(v: number) {
-      buffer.writeUInt8(v, position)
+      buffer.writeInt8(v, position)
       incPos(1)
     },
     readByte(): number {
+      const r = buffer.readInt8(position)
+      position += 1
+      return r
+    },
+    writeByteUnsigned(v: number) {
+      buffer.writeUInt8(v, position)
+      incPos(1)
+    },
+    readByteUnsigned(): number {
       const r = buffer.readUInt8(position)
       position += 1
       return r
     },
-    writeBytes(v: Uint8Array, from?: number, to?: number) {
+    writeBytes(v: Uint8Array | number[], from?: number, to?: number) {
       for (let i = (from ? from : 0); i < (to ? to : v.length); i++)
         buffer.writeUInt8(v[i], position + i)
       incPos(v.length)

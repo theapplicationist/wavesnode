@@ -4,6 +4,7 @@ import { IDictionary } from '../generic/IDictionary';
 import { ISchema, IMessageSchema } from './ISchema';
 import { Buffer } from 'buffer';
 import { MessageCode, Schema } from './messages';
+import { BufferBe } from '../binary/BufferBE';
 
 export function checksum(bytes) {
   var hash = blake2b(32)
@@ -13,63 +14,30 @@ export function checksum(bytes) {
   return new ByteBuffer(output).readInt()
 }
 
-
-type SchemaFactory = ((self: any) => ISchema)
-
-export function createSchema(namedSchemas: IDictionary<ISchema | SchemaFactory>): ISchema {
-  const keys = Object.keys(namedSchemas)
-  return {
-    encode: (buffer, obj) => {
-      keys.forEach(k => {
-        let schema = namedSchemas[k]
-        if (typeof schema === 'function')
-          schema = (schema as SchemaFactory)(obj)
-        //console.log(`encoding: ${k} = ${obj[k]}`)
-        schema.encode(buffer, obj[k])
-      })
-    },
-    decode: buffer => {
-      const obj = {}
-      keys.forEach(k => {
-        let schema = namedSchemas[k]
-        if (typeof schema === 'function')
-          schema = (schema as SchemaFactory)(obj)
-        obj[k] = schema.decode(buffer)
-      })
-      return obj
-    }
-  }
-}
-
-export function createMessageSchema(contentId: number, namedSchemas: IDictionary<ISchema>): IMessageSchema {
-  const schema = createSchema(namedSchemas)
-  schema['contentId'] = contentId
-  const r = schema as IMessageSchema
-  return r
-}
-
-export function serializeMessage(obj, code: MessageCode) {
-  const schema = Schema(code)
-  var buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
+export function serializeMessage<T>(obj: T, code: MessageCode) {
+  const schema = Schema(code) as ISchema<T>
+  const buffer = BufferBe()
+  buffer.writeZeros(4 + 4 + 1 + 4 + 4)
+  const beforePayload = buffer.position()
   schema.encode(buffer, obj)
-  const payload = new Buffer(buffer.raw)
-  buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
+  const afterPayload = buffer.position()
+  const payloadLength = afterPayload - beforePayload
+  const offset = payloadLength == 0 ? 4 : 0
+  buffer.seek(offset+4)
   buffer.writeInt(305419896)
   buffer.writeByte(code)
-  buffer.writeInt(payload.length)
-  if (payload.length > 0)
+  buffer.writeInt(payloadLength)
+  if (payloadLength > 0) {
+    const payload = buffer.raw(beforePayload, afterPayload)
     buffer.writeInt(checksum(payload))
-  buffer.write(payload)
+  }
+  buffer.seek(offset)
+  buffer.writeInt(buffer.length() - offset - 4)
 
-  var length = buffer.length
-  buffer.prepend(4)
-  buffer.index = 0
-  buffer.writeInt(length)
-
-  return new Buffer(buffer.raw)
+  return buffer.raw(offset)
 }
 
-export function deserializeMessage(buffer): { code: MessageCode, content: any } {
+export function deserializeMessage(buffer: BufferBe): { code: MessageCode, content: any } {
   var length = buffer.readInt()
   var magic = buffer.readInt()
   var code = buffer.readByte() as MessageCode
@@ -77,13 +45,15 @@ export function deserializeMessage(buffer): { code: MessageCode, content: any } 
   var payloadLength = buffer.readInt()
   if (payloadLength > 0) {
     var payloadChecksum = buffer.readInt()
-    var payload = buffer.slice(buffer.index, buffer.index + payloadLength)
+    //var payload = buffer.slice(buffer.index, buffer.index + payloadLength)
     //var computedChecksum = checksum(payload.raw)
     //if (payloadChecksum != computedChecksum)
     //  throw "Invalid checksum"
   }
 
   const schema = Schema(code)
-  if (schema)
-    return { code, content: schema.decode(buffer) }
+  if (schema){
+    const content = schema.decode(buffer)
+    return { code, content }
+  }
 }
