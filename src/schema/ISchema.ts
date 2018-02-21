@@ -13,7 +13,7 @@ export interface IMessageSchema<T> extends ISchema<T> {
 
 export const EmptySchema: ISchema<void> = { encode: (b, o) => { }, decode: b => { } }
 
-export const FallbackSchema: ISchema<Uint8Array> = { encode: (b, o) => {  }, decode: b => { return b.readBytes(b.length()) } }
+export const FallbackSchema: ISchema<Uint8Array> = { encode: (b, o) => {  }, decode: b => { return b.readBytes(b.length() - b.position()) } }
 
 export const LeaveBytesFromEnd = (size: number): ISchema<void> => { return { encode: (b, o) => { }, decode: b => { b.seekEnd(); b.seek(-size) } } }
 

@@ -2,9 +2,10 @@ import { array, int, string, byte, bytes, fixedBytes, fixedStringBase58, long, b
 import { BufferBe } from '../src/binary/BufferBE'
 import * as assert from 'assert'
 import { createSchema, createMessageSchema } from '../src/schema/ISchema'
-import { HandshakeSchema, Handshake } from '../src/schema/messages'
+import { HandshakeSchema, Handshake, BlockSchema } from '../src/schema/messages'
 import { suite, test, slow, timeout } from "mocha-typescript"
 import * as Long from "long"
+import * as fs from 'fs'
 
 suite('Messages', () => {
   const buffer = BufferBe()
@@ -30,6 +31,14 @@ suite('Messages', () => {
   })
 
   test('block', () => {
+    const blockSignature = '4w9qyAhXh6LXWPV2hf8QynfEbZJVymy8MnSv9LyVbDN1shcy7qJYNaETuHEaK7iZN4tnUCUEtvCvGoiWka7Yw7ph'
+    const buffer = BufferBe(fs.readFileSync('./test/blocks/' + blockSignature))
+    const r = BlockSchema.decode(buffer)
+    
+    console.log(Buffer.from(r.body).slice(4+1+64+1+32).map(v => v.toString()).join(" "))
+    console.log(Buffer.from(r.body).readInt32BE(0))
+    console.log(Buffer.from(r.body).length)
+    console.log(r.transactionsBlockSize)
     
   })
   

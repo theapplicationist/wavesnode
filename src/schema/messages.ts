@@ -1,4 +1,3 @@
-import ByteBuffer = require('byte-buffer');
 import { array, int, string, byte, bytes, fixedBytes, fixedStringBase58, long, bigInt, fixedStringBase64, short, fixedString, fixedBytesWithSchema } from './primitives'
 import { createSchema, createMessageSchema, ISchema, FallbackSchema } from './ISchema'
 import { EmptySchema, LeaveBytesFromEnd } from './ISchema';
@@ -17,6 +16,7 @@ const IpAddressSchema = createSchema<IpAddress>({
 })
 
 export interface Transaction {
+  size: number,
   type: number,
   body: TransferTransaction
 }
@@ -79,22 +79,25 @@ export interface Block {
   consensusSize: number
   baseTarget: Long
   generationSignature: string
+  transactionsBlockSize: number
   transactionsCount: number
   body: Uint8Array
   generatorPublicKey: string
   signature: string
 }
 
-const BlockSchema = createSchema<Block>({
+export const BlockSchema = createSchema<Block>({
   version: byte,
   timestamp: long,
   parent: fixedStringBase58(64),
   consenusSize: int,
   baseTarget: long,
   generationSignature: fixedStringBase58(32),
+  transactionsBlockSize: int,
   transactionsCount: int,
-  body: (x) => LeaveBytesFromEnd(32+64),
-  //fixedBytesWithSchema(x.transactionsCount - 4, TransactionDiscriminatorSchema),
+  //body: (x) => LeaveBytesFromEnd(32+64),
+  //body: (x) => fixedBytesWithSchema(x.transactionsBlockSize, TransactionDiscriminatorSchema),
+  body: (x) => fixedBytes(x.transactionsBlockSize),
   generatorPublicKey: fixedStringBase58(32),
   signature: fixedStringBase58(64)
 })
