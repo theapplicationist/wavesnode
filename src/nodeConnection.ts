@@ -1,8 +1,6 @@
 import net = require('net')
-import ByteBuffer = require('byte-buffer')
-import { Int64BE } from "int64-buffer"
 import Base58 = require("base-58")
-import { HandshakeSchema, Schema, MessageCode, Handshake } from "./schema/messages"
+import { HandshakeSchema, Schema, MessageCode, Handshake, Block } from "./schema/messages"
 import { serializeMessage, deserializeMessage } from "./schema/serialization"
 import { connect } from 'net';
 import Rx = require('rx-lite')
@@ -18,7 +16,6 @@ import { IncomingBuffer } from './binary/IncomingBuffer';
 import * as Long from 'long';
 import * as fs from 'fs'
 
-
 export interface NodeConnection {
   //props
   ip: () => string,
@@ -28,8 +25,8 @@ export interface NodeConnection {
   connectAndHandshake: () => Promise<Handshake>,
   getPeers: () => Promise<string[]>,
   getSignatures: (lastSignature: string) => Promise<string[]>,
-  getBlock: (signature: string) => Promise<any>
-
+  getBlock: (signature: string) => Promise<Block>
+  onMessage: (handler: (buffer: BufferBe) => void) => void
   //events
   onClose: (handler: () => any) => any
 }
@@ -132,27 +129,24 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
     const response = deserializeMessage(buffer)
     if (response) {
       if (response.code == MessageCode.GetSignaturesResponse) {
-        const p = getPromise(MessageCode.GetSignatures, { lastSignature: response.content[0] })
+        const p = getPromise(MessageCode.GetSignatures, { lastSignature: response.content[0] }, false)
         if (p)
           p.onComplete(response.content)
-      } else
-        if (response.code == MessageCode.GetPeersResponse) {
-          const r = response.content.map(x => x.address.join('.') + ':' + x.port)
-          getPromise(MessageCode.GetPeers, {}).onComplete(r)
-        } else
-          if (response.code == MessageCode.Block) {
-            // buffer.raw()
-
-            fs.writeFile(response.content.signature, buffer.raw(), (err) => {
-              
-              console.log((response.content))
-            })
-            //getPromise(MessageCode.GetBlock, {}).onComplete(response.content)
-          }
-          else {
-            //console.log(`Unsupported message type: ${response.code}`)
-            //console.log(response.content)
-          }
+      } else if (response.code == MessageCode.GetPeersResponse) {
+        const r = response.content.map(x => x.address.join('.') + ':' + x.port)
+        getPromise(MessageCode.GetPeers, {}).onComplete(r)
+      } else if (response.code == MessageCode.Block) {
+        const p = getPromise<Block>(MessageCode.GetBlock, { signature: response.content.signature }, false)
+        if (p)
+          p.onComplete(response.content)
+        if (onMessageHandler) {
+          onMessageHandler(buffer.slice())
+        }
+      }
+      else {
+        //console.log(`Unsupported message type: ${response.code}`)
+        //console.log(response.content)
+      }
     }
   }
 
@@ -161,11 +155,14 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
   const incomingBuffer = IncomingBuffer()
   const promises = LRU(100)
   var onCloseHandler
+  var onMessageHandler
 
-  const getPromise = <T>(code: MessageCode, params: any): ICompletablePromise<T> => {
+  const getPromise = <T>(code: MessageCode, params: any, createIfNotExists = true): ICompletablePromise<T> => {
     const key = `${code}_${Object.keys(params).map(p => p + '_' + params[p].toString()).join('$')}`
     let promise = promises.get(key)
     if (!promise) {
+      if (!createIfNotExists)
+        return
       promise = CompletablePromise()
       promises.set(key, promise)
     }
@@ -225,6 +222,10 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
       onCloseHandler = handler
     },
 
+    onMessage: handler => {
+      onMessageHandler = handler
+    },
+
     getPeers: () =>
       getPromise<string[]>(MessageCode.GetPeers, {}).startOrReturnExisting(() => {
         const m = serializeMessage({}, MessageCode.GetPeers)
@@ -237,7 +238,7 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
       }),
 
     getBlock: (signature: string) =>
-      getPromise<{}>(MessageCode.GetBlock, {}).startOrReturnExisting(() => {
+      getPromise<Block>(MessageCode.GetBlock, { signature }).startOrReturnExisting(() => {
         client.write(serializeMessage(signature, MessageCode.GetBlock))
       })
   }

@@ -2,8 +2,8 @@ import * as Bignum from 'bignum'
 import { ISchema } from './ISchema'
 import * as Long from "long"
 import { Version } from './messages';
-const Base58 = require('base-58')
-const Base64 = require('base64-js')
+import * as Base58 from 'base-58'
+import * as Base64 from 'base64-js'
 
 //Byte size and string contents
 export const string: ISchema<string> = {
@@ -62,11 +62,11 @@ export const fixedBytes = (size: number): ISchema<Uint8Array> => ({
   decode: b => b.readBytes(size)
 })
 export const fixedBytesWithSchema = <T>(size: number, schema: ISchema<T>): ISchema<T[]> => ({
-  encode: (b, v) => {},
+  encode: (b, v) => { },
   decode: b => {
-    const buf = b.slice(0,size)
+    const buf = b.slice(0, size)
     const r: T[] = []
-    while(buf.position() < buf.length()) {
+    while (buf.position() < buf.length()) {
       r.push(schema.decode(buf))
     }
     return r;

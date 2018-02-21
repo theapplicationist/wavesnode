@@ -2,7 +2,7 @@ import { array, int, string, byte, bytes, fixedBytes, fixedStringBase58, long, b
 import { BufferBe } from '../src/binary/BufferBE'
 import * as assert from 'assert'
 import { createSchema, createMessageSchema } from '../src/schema/ISchema'
-import { HandshakeSchema, IHandshake } from '../src/schema/messages'
+import { HandshakeSchema, Handshake } from '../src/schema/messages'
 import { suite, test, slow, timeout } from "mocha-typescript"
 import * as Long from "long"
 
@@ -14,7 +14,7 @@ suite('Messages', () => {
   })
 
   test('handshake', () => {
-    const handshake : IHandshake = {
+    const handshake : Handshake = {
       appName: 'waves' + 'W',
       version: { major: 0, minor: 8, patch: 0 },
       nodeName: 'name',
@@ -27,6 +27,10 @@ suite('Messages', () => {
     buffer.seek(0)
 
     assert.deepEqual(HandshakeSchema.decode(buffer), handshake)
+  })
+
+  test('block', () => {
+    
   })
   
 })

@@ -93,7 +93,7 @@ const BlockSchema = createSchema<Block>({
   baseTarget: long,
   generationSignature: fixedStringBase58(32),
   transactionsCount: int,
-  body: (x) => fixedBytes(x.transactionsCount - 4),
+  body: (x) => LeaveBytesFromEnd(32+64),
   //fixedBytesWithSchema(x.transactionsCount - 4, TransactionDiscriminatorSchema),
   generatorPublicKey: fixedStringBase58(32),
   signature: fixedStringBase58(64)

@@ -1,17 +1,16 @@
 import blake2b = require('blake2b')
-import ByteBuffer = require('byte-buffer');
 import { IDictionary } from '../generic/IDictionary';
 import { ISchema, IMessageSchema } from './ISchema';
 import { Buffer } from 'buffer';
 import { MessageCode, Schema } from './messages';
 import { BufferBe } from '../binary/BufferBE';
 
-export function checksum(bytes) {
+export function checksum(bytes: Buffer): number {
   var hash = blake2b(32)
   hash.update(bytes)
-  var output = new Uint8Array(32)
+  var output = new Buffer(32)
   hash.digest(output)
-  return new ByteBuffer(output).readInt()
+  return output.readInt32BE(0)
 }
 
 export function serializeMessage<T>(obj: T, code: MessageCode) {

@@ -22,6 +22,12 @@ suite('NodeConnection', function () {
     assert.equal(p[1], secondBlock)
   })
 
+  test('should get block', async () => {
+    const block = '4WTvzu6V1WCA31hsx5o4rbg5YffmECoG2KUqENEKTpbwBU875TvdKDVUPjVjiwo8vjAARHaRT6H29HURsap93dqm'
+    const p = await connection.getBlock(block)
+    assert.equal(p.signature, block)
+  })
+
   test('should get peers', async () => {
     const p = await connection.getPeers()
     assert(p.length > 0)
