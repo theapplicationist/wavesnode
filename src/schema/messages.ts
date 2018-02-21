@@ -1,21 +1,91 @@
 import ByteBuffer = require('byte-buffer');
-import { array, int, string, byte, bytes, fixedBytes, fixedStringBase58, long, bigInt, fixedStringBase64 } from './primitives'
-import { createSchema, createMessageSchema } from './ISchema'
+import { array, int, string, byte, bytes, fixedBytes, fixedStringBase58, long, bigInt, fixedStringBase64, short, fixedString, fixedBytesWithSchema } from './primitives'
+import { createSchema, createMessageSchema, ISchema, FallbackSchema } from './ISchema'
 import { EmptySchema, LeaveBytesFromEnd } from './ISchema';
 import { Buffer } from 'buffer';
 import { version } from 'punycode';
 import * as Long from 'long';
 
-const IpAddress = createSchema({
+export interface IpAddress {
+  address: string,
+  port: number
+}
+
+const IpAddressSchema = createSchema<IpAddress>({
   address: fixedBytes(4),
   port: int,
 })
 
-const TransactionSchema = createSchema({
+export interface Transaction {
+  type: number,
+  body: TransferTransaction
+}
 
+export interface AddressOrAlias {
+  version: number
+  address: string
+}
+
+const AddressOrAliasSchema = createSchema<AddressOrAlias>({
+  version: byte,
+  address: (x) => x.version == 1 ? fixedStringBase58(25) : createSchema<any>({
+    scheme: byte,
+    length: short,
+    address: (y) => fixedString(y.length)
+  })
 })
 
-const BlockSchema = createSchema({
+export interface TransferTransaction {
+  signature: string,
+  type: number,
+  sender: string,
+  amountIsAsset: number,
+  assetId?: string,
+  feeIsAsset: number,
+  feeAssetId?: string,
+  timestamp: Long,
+  amount: Long
+  fee: Long
+  recipient: string,
+  attachmentLength: number
+  attachment: Uint8Array
+}
+
+const TransferTransactionSchema = createSchema<TransferTransaction>({
+  signature: fixedStringBase58(64),
+  type: byte,
+  sender: fixedStringBase58(32),
+  amountIsAsset: byte,
+  assetId: (x) => x.amountIsAsset == 1 ? fixedBytes(32) : EmptySchema,
+  feeIsAsset: byte,
+  feeAssetId: (x) => x.amountIsAsset == 1 ? fixedBytes(32) : EmptySchema,
+  timestamp: long,
+  amount: long,
+  fee: long,
+  recipient: AddressOrAliasSchema,
+  attachmentLength: short,
+  attachment: (x) => fixedBytes(x.attachmentLength)
+})
+
+const TransactionDiscriminatorSchema = createSchema<Transaction>({
+  type: byte,
+  body: (x) => x.type == 4 ? TransferTransactionSchema : FallbackSchema
+})
+
+export interface Block {
+  version: number
+  timestamp: Long
+  parent: string
+  consensusSize: number
+  baseTarget: Long
+  generationSignature: string
+  transactionsCount: number
+  body: Uint8Array
+  generatorPublicKey: string
+  signature: string
+}
+
+const BlockSchema = createSchema<Block>({
   version: byte,
   timestamp: long,
   parent: fixedStringBase58(64),
@@ -23,33 +93,34 @@ const BlockSchema = createSchema({
   baseTarget: long,
   generationSignature: fixedStringBase58(32),
   transactionsCount: int,
-  body: LeaveBytesFromEnd(32 + 64),
+  body: (x) => fixedBytes(x.transactionsCount - 4),
+  //fixedBytesWithSchema(x.transactionsCount - 4, TransactionDiscriminatorSchema),
   generatorPublicKey: fixedStringBase58(32),
   signature: fixedStringBase58(64)
 })
 
-export interface IVersion {
+export interface Version {
   major: number,
   minor: number,
   patch: number
 }
 
-export const VersionSchema = createSchema<IVersion>({
+export const VersionSchema = createSchema<Version>({
   major: int,
   minor: int,
   patch: int,
 })
 
-export interface IHandshake {
+export interface Handshake {
   appName: string
-  version: IVersion
+  version: Version
   nodeName: string
   nonce: Long
   declaredAddress: Uint8Array | number[]
   timestamp: Long
 }
 
-export const HandshakeSchema = createSchema<IHandshake>({
+export const HandshakeSchema = createSchema<Handshake>({
   appName: string,
   version: VersionSchema,
   nodeName: string,
@@ -71,12 +142,14 @@ export enum MessageCode {
   Block = 23
 }
 
-export function Schema(code: MessageCode) {
+export type SchemaTypes = IpAddress[] | string[] | Block | void
+
+export function Schema(code: MessageCode): ISchema<SchemaTypes> {
   switch (code) {
     case MessageCode.GetPeers:
       return EmptySchema
     case MessageCode.GetPeersResponse:
-      return array(IpAddress)
+      return array(IpAddressSchema)
     case MessageCode.GetSignatures:
       return array(fixedStringBase58(64))
     case MessageCode.GetSignaturesResponse:
@@ -86,6 +159,6 @@ export function Schema(code: MessageCode) {
     case MessageCode.Block:
       return BlockSchema
     default:
-      break;
+      return FallbackSchema
   }
 }

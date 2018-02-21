@@ -8,12 +8,15 @@ export interface BufferBe {
   seekEnd(): void
   clear(): void
   raw(from?: number, to?: number): Buffer
+  slice(from?: number, to?: number): BufferBe
   length(): number
   writeZeros(length: number): void
   writeLong(v: Long): void
   readLong(): Long
   writeInt(v: number): void
   readInt(): number
+  writeShort(v: number): void
+  readShort(): number
   writeByte(v: number): void
   readByte(): number
   writeBytes(v: Uint8Array | number[]): void
@@ -59,6 +62,11 @@ export const BufferBe = (initialBuffer?: Buffer): BufferBe => {
       if (!to) to = end
       return buffer.slice(from, to)
     },
+    slice(from?: number, to?: number) {
+      if (!from) from = 0
+      if (!to) to = end
+      return BufferBe(buffer.slice(from, to))
+    },
     length(): number { return end },
     writeZeros(length: number) {
       incPos(length)
@@ -83,6 +91,15 @@ export const BufferBe = (initialBuffer?: Buffer): BufferBe => {
     readInt(): number {
       const r = buffer.readInt32BE(position)
       position += 4
+      return r
+    },
+    writeShort(v: number) {
+      buffer.writeInt16BE(v, position)
+      incPos(2)
+    },
+    readShort(): number {
+      const r = buffer.readInt16BE(position)
+      position += 2
       return r
     },
     writeByte(v: number) {

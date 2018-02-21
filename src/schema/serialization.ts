@@ -23,7 +23,7 @@ export function serializeMessage<T>(obj: T, code: MessageCode) {
   const afterPayload = buffer.position()
   const payloadLength = afterPayload - beforePayload
   const offset = payloadLength == 0 ? 4 : 0
-  buffer.seek(offset+4)
+  buffer.seek(offset + 4)
   buffer.writeInt(305419896)
   buffer.writeByte(code)
   buffer.writeInt(payloadLength)
@@ -52,8 +52,6 @@ export function deserializeMessage(buffer: BufferBe): { code: MessageCode, conte
   }
 
   const schema = Schema(code)
-  if (schema){
-    const content = schema.decode(buffer)
-    return { code, content }
-  }
+  const content = schema.decode(buffer)
+  return { code, content }
 }

@@ -13,18 +13,20 @@ export interface IMessageSchema<T> extends ISchema<T> {
 
 export const EmptySchema: ISchema<void> = { encode: (b, o) => { }, decode: b => { } }
 
+export const FallbackSchema: ISchema<Uint8Array> = { encode: (b, o) => {  }, decode: b => { return b.readBytes(b.length()) } }
+
 export const LeaveBytesFromEnd = (size: number): ISchema<void> => { return { encode: (b, o) => { }, decode: b => { b.seekEnd(); b.seek(-size) } } }
 
-export type SchemaFactory<T> = ((self: any) => ISchema<T>)
+export type SchemaFactory<Self, T> = ((self: Self) => ISchema<T>)
 
-export function createSchema<T>(namedSchemas: IDictionary<ISchema<any> | SchemaFactory<any>>): ISchema<T> {
+export function createSchema<T>(namedSchemas: IDictionary<ISchema<any> | SchemaFactory<T, any>>): ISchema<T> {
   const keys = Object.keys(namedSchemas)
   return {
     encode: (buffer: BufferBe, obj) => {
       keys.forEach(k => {
         let schema = namedSchemas[k]
         if (typeof schema === 'function')
-          schema = (schema as SchemaFactory<any>)(obj) as ISchema<any>
+          schema = (schema as SchemaFactory<T, any>)(obj) as ISchema<any>
         //console.log(`encoding: ${k} = ${obj[k]}`)
         schema.encode(buffer, obj[k])
       })
@@ -34,7 +36,7 @@ export function createSchema<T>(namedSchemas: IDictionary<ISchema<any> | SchemaF
       keys.forEach(k => {
         let schema = namedSchemas[k]
         if (typeof schema === 'function')
-          schema = (schema as SchemaFactory<any>)(obj) as ISchema<any>
+          schema = (schema as SchemaFactory<T, any>)(obj as T) as ISchema<any>
         obj[k] = schema.decode(buffer)
       })
       return obj as T

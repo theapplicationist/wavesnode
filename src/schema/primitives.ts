@@ -1,7 +1,7 @@
 import * as Bignum from 'bignum'
 import { ISchema } from './ISchema'
 import * as Long from "long"
-import { IVersion } from './messages';
+import { Version } from './messages';
 const Base58 = require('base-58')
 const Base64 = require('base64-js')
 
@@ -13,7 +13,13 @@ export const string: ISchema<string> = {
   },
   decode: b => b.readString(b.readByteUnsigned())
 }
-
+export const fixedString = (size: number): ISchema<string> => ({
+  encode: (b, v) => {
+    b.writeByteUnsigned(size)
+    b.writeString(v)
+  },
+  decode: b => b.readString(size)
+})
 export const fixedStringBase58 = (size): ISchema<string> => ({
   encode: (b, v) => b.writeBytes(Base58.decode(v)),
   decode: b => Base58.encode(b.readBytes(size))
@@ -35,6 +41,10 @@ export const int: ISchema<number> = {
   encode: (b, v) => b.writeInt(v),
   decode: b => b.readInt()
 }
+export const short: ISchema<number> = {
+  encode: (b, v) => b.writeShort(v),
+  decode: b => b.readShort()
+}
 export const byte: ISchema<number> = {
   encode: (b, v) => b.writeByte(v),
   decode: b => b.readByte()
@@ -51,6 +61,17 @@ export const fixedBytes = (size: number): ISchema<Uint8Array> => ({
   encode: (b, v) => b.writeBytes(v),
   decode: b => b.readBytes(size)
 })
+export const fixedBytesWithSchema = <T>(size: number, schema: ISchema<T>): ISchema<T[]> => ({
+  encode: (b, v) => {},
+  decode: b => {
+    const buf = b.slice(0,size)
+    const r: T[] = []
+    while(buf.position() < buf.length()) {
+      r.push(schema.decode(buf))
+    }
+    return r;
+  }
+})
 //Int size and schema
 export const array = <T>(schema: ISchema<T>): ISchema<T[]> => ({
   encode: (b, v) => {
@@ -66,7 +87,7 @@ export const array = <T>(schema: ISchema<T>): ISchema<T[]> => ({
     return result
   }
 })
-export const bigInt = size => ({
-  encode: (b, v) => b.write(v.toBuffer()),
-  decode: b => Bignum.fromBuffer(b.read(size).raw)
+export const bigInt = (size: number): ISchema<Bignum> => ({
+  encode: (b, v) => b.writeBytes(v.toBuffer()),
+  decode: b => Bignum.fromBuffer(b.readBytes(size))
 })

@@ -2,7 +2,7 @@ import net = require('net')
 import ByteBuffer = require('byte-buffer')
 import { Int64BE } from "int64-buffer"
 import Base58 = require("base-58")
-import { HandshakeSchema, Schema, MessageCode, IHandshake } from "./schema/messages"
+import { HandshakeSchema, Schema, MessageCode, Handshake } from "./schema/messages"
 import { serializeMessage, deserializeMessage } from "./schema/serialization"
 import { connect } from 'net';
 import Rx = require('rx-lite')
@@ -16,6 +16,8 @@ import * as LRU from 'lru-cache'
 import { BufferBe } from './binary/BufferBE';
 import { IncomingBuffer } from './binary/IncomingBuffer';
 import * as Long from 'long';
+import * as fs from 'fs'
+
 
 export interface NodeConnection {
   //props
@@ -23,7 +25,7 @@ export interface NodeConnection {
 
   //methods
   close: () => any,
-  connectAndHandshake: () => Promise<IHandshake>,
+  connectAndHandshake: () => Promise<Handshake>,
   getPeers: () => Promise<string[]>,
   getSignatures: (lastSignature: string) => Promise<string[]>,
   getBlock: (signature: string) => Promise<any>
@@ -133,20 +135,29 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
         const p = getPromise(MessageCode.GetSignatures, { lastSignature: response.content[0] })
         if (p)
           p.onComplete(response.content)
-      }
-      if (response.code == MessageCode.GetPeersResponse) {
-        getPromise(MessageCode.GetPeers, {}).onComplete(response.content.map(x => {
-          x.address.join('.')
-      }))
-      }
-      if (response.code == MessageCode.Block) {
-        getPromise(MessageCode.GetBlock, {}).onComplete(response.content)
-      }
+      } else
+        if (response.code == MessageCode.GetPeersResponse) {
+          const r = response.content.map(x => x.address.join('.') + ':' + x.port)
+          getPromise(MessageCode.GetPeers, {}).onComplete(r)
+        } else
+          if (response.code == MessageCode.Block) {
+            // buffer.raw()
+
+            fs.writeFile(response.content.signature, buffer.raw(), (err) => {
+              
+              console.log((response.content))
+            })
+            //getPromise(MessageCode.GetBlock, {}).onComplete(response.content)
+          }
+          else {
+            //console.log(`Unsupported message type: ${response.code}`)
+            //console.log(response.content)
+          }
     }
   }
 
   const client = new net.Socket()
-  const connectAndHandshakePromise = CompletablePromise<IHandshake>()
+  const connectAndHandshakePromise = CompletablePromise<Handshake>()
   const incomingBuffer = IncomingBuffer()
   const promises = LRU(100)
   var onCloseHandler
@@ -198,10 +209,9 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
     connectAndHandshake: () => {
       return connectAndHandshakePromise.startOrReturnExisting(() => {
         client.connect(port, ip, () => {
-          console.log("connected")
+          //console.log("connected")
           const buffer = BufferBe()
           HandshakeSchema.encode(buffer, handshake)
-          console.log(buffer.raw())
           client.write(buffer.raw())
         })
       })
