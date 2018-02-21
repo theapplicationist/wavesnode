@@ -58,7 +58,7 @@ const TransferTransactionSchema = createSchema<TransferTransaction>({
   amountIsAsset: byte,
   assetId: (x) => x.amountIsAsset == 1 ? fixedBytes(32) : EmptySchema,
   feeIsAsset: byte,
-  feeAssetId: (x) => x.amountIsAsset == 1 ? fixedBytes(32) : EmptySchema,
+  feeAssetId: (x) => x.feeIsAsset == 1 ? fixedBytes(32) : EmptySchema,
   timestamp: long,
   amount: long,
   fee: long,
@@ -68,8 +68,12 @@ const TransferTransactionSchema = createSchema<TransferTransaction>({
 })
 
 const TransactionDiscriminatorSchema = createSchema<Transaction>({
+  size: int,
   type: byte,
-  body: (x) => x.type == 4 ? TransferTransactionSchema : FallbackSchema
+  body: (x) => {
+    console.log(x.type)
+    return x.type == 4 ? TransferTransactionSchema : fixedBytes(x.size - 1)
+  }
 })
 
 export interface Block {
@@ -96,8 +100,8 @@ export const BlockSchema = createSchema<Block>({
   transactionsBlockSize: int,
   transactionsCount: int,
   //body: (x) => LeaveBytesFromEnd(32+64),
-  //body: (x) => fixedBytesWithSchema(x.transactionsBlockSize, TransactionDiscriminatorSchema),
-  body: (x) => fixedBytes(x.transactionsBlockSize),
+  body: (x) => fixedBytesWithSchema(x.transactionsBlockSize, TransactionDiscriminatorSchema),
+  //body: (x) => fixedBytes(x.transactionsBlockSize),
   generatorPublicKey: fixedStringBase58(32),
   signature: fixedStringBase58(64)
 })

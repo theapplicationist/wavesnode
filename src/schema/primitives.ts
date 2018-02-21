@@ -64,7 +64,7 @@ export const fixedBytes = (size: number): ISchema<Uint8Array> => ({
 export const fixedBytesWithSchema = <T>(size: number, schema: ISchema<T>): ISchema<T[]> => ({
   encode: (b, v) => { },
   decode: b => {
-    const buf = b.slice(0, size)
+    const buf = b.slice(b.position(), b.position() + size)
     const r: T[] = []
     while (buf.position() < buf.length()) {
       r.push(schema.decode(buf))

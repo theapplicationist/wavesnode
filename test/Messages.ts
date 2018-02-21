@@ -35,10 +35,10 @@ suite('Messages', () => {
     const buffer = BufferBe(fs.readFileSync('./test/blocks/' + blockSignature))
     const r = BlockSchema.decode(buffer)
     
-    console.log(Buffer.from(r.body).slice(4+1+64+1+32).map(v => v.toString()).join(" "))
-    console.log(Buffer.from(r.body).readInt32BE(0))
-    console.log(Buffer.from(r.body).length)
-    console.log(r.transactionsBlockSize)
+    //console.log(Buffer.from(r.body).slice(4+1+64+1+32).map(v => v.toString()).join(" "))
+    //console.log(Buffer.from(r.body).readInt32BE(0))
+    //console.log(Buffer.from(r.body).length)
+    console.log(r)
     
   })
   
