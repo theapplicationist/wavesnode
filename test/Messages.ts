@@ -31,15 +31,10 @@ suite('Messages', () => {
   })
 
   test('block', () => {
-    const blockSignature = '4w9qyAhXh6LXWPV2hf8QynfEbZJVymy8MnSv9LyVbDN1shcy7qJYNaETuHEaK7iZN4tnUCUEtvCvGoiWka7Yw7ph'
+    const blockSignature = '4uZ6ji8SMYgzA1AK8xSUnufxFNhV65oiom4WCc89i8Ng6gVjjZZFJWUJpb8a4GdbjCgbJ6geNYzMjyC18JSCwoCQ'
     const buffer = BufferBe(fs.readFileSync('./test/blocks/' + blockSignature))
-    const r = BlockSchema.decode(buffer)
-    
-    //console.log(Buffer.from(r.body).slice(4+1+64+1+32).map(v => v.toString()).join(" "))
-    //console.log(Buffer.from(r.body).readInt32BE(0))
-    //console.log(Buffer.from(r.body).length)
-    console.log(r)
-    
+    const block = BlockSchema.decode(buffer)
+    assert.equal(block.signature, blockSignature)
   })
   
 })

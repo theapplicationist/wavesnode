@@ -17,10 +17,14 @@ export interface BufferBe {
   readInt(): number
   writeShort(v: number): void
   readShort(): number
+  writeShortUnsigned(v: number): void
+  readShortUnsigned(): number
   writeByte(v: number): void
   readByte(): number
-  writeBytes(v: Uint8Array | number[]): void
+  writeBytes(v: Uint8Array | number[], from?: number, to?: number): void
   writeByteUnsigned(v: number): void
+  writeShorts(v: Uint16Array | number[], from?: number, to?: number) : void
+  readShorts(length: number): Uint16Array
   readByteUnsigned(): number
   writeBytes(v: Uint8Array): void
   readBytes(length: number): Uint8Array
@@ -102,6 +106,15 @@ export const BufferBe = (initialBuffer?: Buffer): BufferBe => {
       position += 2
       return r
     },
+    writeShortUnsigned(v: number) {
+      buffer.writeUInt16BE(v, position)
+      incPos(2)
+    },
+    readShortUnsigned(): number {
+      const r = buffer.readUInt16BE(position)
+      position += 2
+      return r
+    },
     writeByte(v: number) {
       buffer.writeInt8(v, position)
       incPos(1)
@@ -127,6 +140,16 @@ export const BufferBe = (initialBuffer?: Buffer): BufferBe => {
     },
     readBytes(length: number): Uint8Array {
       const r = Uint8Array.from(buffer.slice(position, position + length))
+      position += length
+      return r
+    },
+    writeShorts(v: Uint16Array | number[], from?: number, to?: number) {
+      for (let i = (from ? from : 0); i < (to ? to : v.length); i++)
+        buffer.writeUInt16BE(v[i], position + i)
+      incPos(v.length)
+    },
+    readShorts(length: number): Uint16Array {
+      const r = Uint16Array.from(buffer.slice(position, position + length))
       position += length
       return r
     },

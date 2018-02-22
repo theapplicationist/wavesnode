@@ -1,5 +1,5 @@
-import { array, int, string, byte, bytes, fixedBytes, fixedStringBase58, long, bigInt, fixedStringBase64, short, fixedString, fixedBytesWithSchema } from './primitives'
-import { createSchema, createMessageSchema, ISchema, FallbackSchema } from './ISchema'
+import { array, int, string, byte, bytes, fixedBytes, fixedStringBase58, long, bigInt, fixedStringBase64, short, fixedString, fixedBytesWithSchema, bytesShortSize, shorts, shortSizedString } from './primitives'
+import { createSchema, createMessageSchema, ISchema, FallbackSchema, LoggingSchema } from './ISchema'
 import { EmptySchema, LeaveBytesFromEnd } from './ISchema';
 import { Buffer } from 'buffer';
 import { version } from 'punycode';
@@ -35,6 +35,36 @@ const AddressOrAliasSchema = createSchema<AddressOrAlias>({
   })
 })
 
+export interface GenesisTransaction {
+  timestamp: Long
+  recipient: string
+  amount: Long
+}
+
+export const GenesisTransactionSchema = createSchema({
+  timestamp: long,
+  recipient: fixedStringBase58(26),
+  amount: long
+})
+
+export interface PaymentTransaction {
+  timestamp: Long
+  sender: string
+  recipient: string
+  amount: Long
+  fee: Long
+  signature: string
+}
+
+export const PaymentTransactionSchema = createSchema({
+  timestamp: long,
+  sender: fixedStringBase58(32),
+  recipient: fixedStringBase58(26),
+  amount: long,
+  fee: long,
+  signature: fixedStringBase58(64)
+})
+
 export interface TransferTransaction {
   signature: string,
   type: number,
@@ -67,12 +97,209 @@ const TransferTransactionSchema = createSchema<TransferTransaction>({
   attachment: (x) => fixedBytes(x.attachmentLength)
 })
 
-const TransactionDiscriminatorSchema = createSchema<Transaction>({
+export interface IssueTransaction {
+  signature: string,
+  type: number,
+  sender: string,
+  name: number,
+  description: string,
+  quantity: Long,
+  decimals: number,
+  isReissuable: number,
+  fee: Long,
+  timestamp: Long
+}
+
+export const IssueTransactionSchema = createSchema<IssueTransaction>({
+  signature: fixedStringBase58(64),
+  type: byte,
+  sender: fixedStringBase58(32),
+  name: shortSizedString,
+  description: shortSizedString,
+  quantity: long,
+  decimals: byte,
+  isReissuable: byte,
+  fee: long,
+  timestamp: long
+})
+
+export interface ReissueTransaction {
+  signature: string,
+  type: number,
+  sender: string,
+  assetId: string,
+  quantity: Long,
+  isReissuable: number,
+  fee: Long,
+  timestamp: Long
+}
+
+export const ReissueTransactionSchema = createSchema<ReissueTransaction>({
+  signature: fixedStringBase58(64),
+  type: byte,
+  sender: fixedStringBase58(32),
+  assetId: fixedStringBase58(32),
+  quantity: long,
+  isReissuable: byte,
+  fee: long,
+  timestamp: long
+})
+
+export interface BurnTransaction {
+  sender: string,
+  assetId: string,
+  amount: Long,
+  fee: Long,
+  timestamp: Long
+  signature: string,
+}
+
+export const BurnTransactionSchema = createSchema<BurnTransaction>({
+  sender: fixedStringBase58(32),
+  assetId: fixedStringBase58(32),
+  amount: long,
+  fee: long,
+  timestamp: long,
+  signature: fixedStringBase58(64)
+})
+
+export interface Order {
+  sender: string
+  matcher: string
+  amountIsAsset: number
+  assetId?: string,
+  priceIsAsset: number,
+  priceAssetId: string
+  orderType: number,
+  price: Long,
+  amount: Long,
+  timestamp: Long,
+  expiration: Long,
+  matcherFee: Long,
+  signature: string
+}
+
+export const OrderSchema = createSchema<Order>({
+  sender: fixedStringBase58(32),
+  matcher: fixedStringBase58(32),
+  amountIsAsset: byte,
+  assetId: (x) => x.amountIsAsset == 1 ? fixedBytes(32) : EmptySchema,
+  priceIsAsset: byte,
+  priceAssetId: (x) => x.priceIsAsset == 1 ? fixedBytes(32) : EmptySchema,
+  orderType: byte,
+  price: long,
+  amount: long,
+  timestamp: long,
+  expiration: long,
+  matcherFee: long,
+  signature: fixedStringBase58(64)
+})
+
+export interface ExchangeTransaction {
+  buyOrderSize: number,
+  sellOrderSize: number,
+  buyOrder: Order,
+  sellOrder: Order,
+  price: Long,
+  amount: Long,
+  buyMatcherFee: Long,
+  sellMatcherFee: Long,
+  fee: Long,
+  timestamp: Long,
+  signature: string
+}
+
+export const ExchangeTransactionSchema = createSchema<ExchangeTransaction>({
+  buyOrderSize: int,
+  sellOrderSize: int,
+  buyOrder: OrderSchema,
+  sellOrder: OrderSchema,
+  price: long,
+  amount: long,
+  buyMatcherFee: long,
+  sellMatcherFee: long,
+  fee: long,
+  timestamp: long,
+  signature: fixedStringBase58(64)
+})
+
+export interface LeaseTransaction {
+  sender: string,
+  recipient: AddressOrAlias,
+  amount: Long,
+  fee: Long,
+  timestamp: Long,
+  signature: string
+}
+
+export const LeaseTransactionSchema = createSchema<LeaseTransaction>({
+  sender: fixedStringBase58(32),
+  recipient: AddressOrAliasSchema,
+  amount: long,
+  fee: long,
+  timestamp: long,
+  signature: fixedStringBase58(64)
+})
+
+
+export interface LeaseCancelTransaction {
+  sender: string,
+  fee: Long,
+  timestamp: Long,
+  leaseTransactionId: string
+  signature: string
+}
+
+export const LeaseCancelTransactionSchema = createSchema<LeaseCancelTransaction>({
+  sender: fixedStringBase58(32),
+  fee: long,
+  timestamp: long,
+  leaseTransactionId: fixedStringBase58(32),
+  signature: fixedStringBase58(64)
+})
+
+export interface CreateAliasTransaction {
+  sender: string
+  alias: string,
+  fee: Long,
+  timestamp: Long,
+  signature: string
+}
+
+export const CreateAliasTransactionSchema = createSchema<CreateAliasTransaction>({
+  sender: fixedStringBase58(32),
+  alias: shortSizedString,
+  fee: long,
+  timestamp: long,
+  signature: fixedStringBase58(64)
+})
+
+export const TransactionDiscriminatorSchema = createSchema<Transaction>({
   size: int,
   type: byte,
   body: (x) => {
-    console.log(x.type)
-    return x.type == 4 ? TransferTransactionSchema : fixedBytes(x.size - 1)
+    switch (x.type) {
+      case 2:
+        return PaymentTransactionSchema
+      case 3:
+        return IssueTransactionSchema
+      case 4:
+        return TransferTransactionSchema
+      case 5:
+        return ReissueTransactionSchema
+      case 6:
+        return BurnTransactionSchema
+      case 7:
+        return ExchangeTransactionSchema
+      case 8:
+        return LeaseTransactionSchema
+      case 9:
+        return LeaseCancelTransactionSchema
+      case 10:
+        return CreateAliasTransactionSchema
+      default:
+        return fixedBytes(x.size - 1)
+    }
   }
 })
 
@@ -84,9 +311,10 @@ export interface Block {
   baseTarget: Long
   generationSignature: string
   transactionsBlockSize: number
-  transactionsCount: number
-  body: Uint8Array
+  transactionsCount?: number
+  transactions: Transaction[]
   generatorPublicKey: string
+  features?: Uint16Array
   signature: string
 }
 
@@ -98,10 +326,9 @@ export const BlockSchema = createSchema<Block>({
   baseTarget: long,
   generationSignature: fixedStringBase58(32),
   transactionsBlockSize: int,
-  transactionsCount: int,
-  //body: (x) => LeaveBytesFromEnd(32+64),
-  body: (x) => fixedBytesWithSchema(x.transactionsBlockSize, TransactionDiscriminatorSchema),
-  //body: (x) => fixedBytes(x.transactionsBlockSize),
+  transactionsCount: (x) => x.version < 3 ? byte : int,
+  transactions: (x) => fixedBytesWithSchema(x.transactionsBlockSize - (x.version < 3 ? 1 : 4), TransactionDiscriminatorSchema),
+  features: (x) => x.version < 3 ? EmptySchema : shorts,
   generatorPublicKey: fixedStringBase58(32),
   signature: fixedStringBase58(64)
 })

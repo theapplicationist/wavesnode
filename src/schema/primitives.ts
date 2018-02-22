@@ -13,6 +13,13 @@ export const string: ISchema<string> = {
   },
   decode: b => b.readString(b.readByteUnsigned())
 }
+export const shortSizedString: ISchema<string> = {
+  encode: (b, v) => {
+    b.writeShortUnsigned(v.length)
+    b.writeString(v)
+  },
+  decode: b => b.readString(b.readShortUnsigned())
+}
 export const fixedString = (size: number): ISchema<string> => ({
   encode: (b, v) => {
     b.writeByteUnsigned(size)
@@ -57,6 +64,14 @@ export const bytes: ISchema<Uint8Array> = {
   },
   decode: b => b.readBytes(b.readInt())
 }
+//Int size and shorts
+export const shorts: ISchema<Uint16Array> = {
+  encode: (b, v: Uint16Array | number[]) => {
+    b.writeInt(v.length)
+    b.writeShorts(v)
+  },
+  decode: b => b.readShorts(b.readInt())
+}
 export const fixedBytes = (size: number): ISchema<Uint8Array> => ({
   encode: (b, v) => b.writeBytes(v),
   decode: b => b.readBytes(size)
@@ -64,7 +79,9 @@ export const fixedBytes = (size: number): ISchema<Uint8Array> => ({
 export const fixedBytesWithSchema = <T>(size: number, schema: ISchema<T>): ISchema<T[]> => ({
   encode: (b, v) => { },
   decode: b => {
-    const buf = b.slice(b.position(), b.position() + size)
+    const p = b.position()
+    const buf = b.slice(p, p + size)
+    b.seek(p + size)
     const r: T[] = []
     while (buf.position() < buf.length()) {
       r.push(schema.decode(buf))
