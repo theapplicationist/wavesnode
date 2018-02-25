@@ -15,10 +15,12 @@ const IpAddressSchema = createSchema<IpAddress>({
   port: int,
 })
 
+type Transactions = GenesisTransaction | PaymentTransaction | IssueTransaction | TransferTransaction | ReissueTransaction | BurnTransaction | ExchangeTransaction | LeaseTransaction | LeaseCancelTransaction | CreateAliasTransaction
+
 export interface Transaction {
   size: number,
   type: number,
-  body: TransferTransaction
+  body: Transactions
 }
 
 export interface AddressOrAlias {
@@ -34,6 +36,7 @@ const AddressOrAliasSchema = createSchema<AddressOrAlias>({
     address: (y) => fixedString(y.length)
   })
 })
+
 
 export interface GenesisTransaction {
   timestamp: Long
@@ -274,7 +277,7 @@ export const CreateAliasTransactionSchema = createSchema<CreateAliasTransaction>
   signature: fixedStringBase58(64)
 })
 
-export const TransactionDiscriminatorSchema = createSchema<Transaction>({
+export const TransactionDiscriminatorSchema = createSchema<Transactions>({
   size: int,
   type: byte,
   body: (x) => {

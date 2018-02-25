@@ -15,7 +15,7 @@ suite('Messages', () => {
   })
 
   test('handshake', () => {
-    const handshake : Handshake = {
+    const handshake: Handshake = {
       appName: 'waves' + 'W',
       version: { major: 0, minor: 8, patch: 0 },
       nodeName: 'name',
@@ -30,11 +30,26 @@ suite('Messages', () => {
     assert.deepEqual(HandshakeSchema.decode(buffer), handshake)
   })
 
-  test('block', () => {
-    const blockSignature = '4uZ6ji8SMYgzA1AK8xSUnufxFNhV65oiom4WCc89i8Ng6gVjjZZFJWUJpb8a4GdbjCgbJ6geNYzMjyC18JSCwoCQ'
+  test('large block', () => {
+    const blockSignature = '4Jk7PLSzQ1utkzxftrS8PHA82v3zfPCCfZ4Mr4wonfuq9HWNSa6YucpmVWfWSdBJDwC6KhvvT9PpgYLaed6K13eR'
     const buffer = BufferBe(fs.readFileSync('./test/blocks/' + blockSignature))
     const block = BlockSchema.decode(buffer)
     assert.equal(block.signature, blockSignature)
   })
-  
+
+  test('block v2', () => {
+    const blockSignature = 'fb6v1LnMiqWQKYXcG3HTqZhKRK64nkFVZrcNGuEqq5xFHUyBKEzoG22faxEHxagubnXMnTGEg7mAXKE3CSkZbd2'
+    const buffer = BufferBe(fs.readFileSync('./test/blocks/' + blockSignature))
+    const block = BlockSchema.decode(buffer)
+    assert.equal(block.signature, blockSignature)
+    assert.deepEqual(block.transactions[0].body.amount, Long.fromNumber(7200000000))
+  })
+
+  test('genesis block', () => {
+    const blockSignature = 'FSH8eAAzZNqnG8xgTZtz5xuLqXySsXgAjmFEC25hXMbEufiGjqWPnGCZFt6gLiVLJny16ipxRNAkkzjjhqTjBE2'
+    const buffer = BufferBe(fs.readFileSync('./test/blocks/' + blockSignature))
+    const block = BlockSchema.decode(buffer)
+    assert.equal(block.signature, blockSignature)
+  })
+
 })
