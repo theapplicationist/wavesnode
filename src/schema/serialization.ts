@@ -50,7 +50,7 @@ export function deserializeMessage(buffer: BufferBe): { code: MessageCode, conte
     //  throw "Invalid checksum"
   }
 
-  const schema = Schema(code)
+  const schema = Schema(code, payloadLength)
   const content = schema.decode(buffer)
   return { code, content }
 }

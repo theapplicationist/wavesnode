@@ -1,9 +1,11 @@
-import { array, int, string, byte, bytes, fixedBytes, fixedStringBase58, long, bigInt, fixedStringBase64, short, fixedString, fixedBytesWithSchema, bytesShortSize, shorts, shortSizedString } from './primitives'
+import { array, int, string, byte, bytes, fixedBytes, fixedStringBase58, long, bigInt, fixedStringBase64, short, fixedString, fixedBytesWithSchema, shorts, shortSizedString } from './primitives'
 import { createSchema, createMessageSchema, ISchema, FallbackSchema, LoggingSchema } from './ISchema'
 import { EmptySchema, LeaveBytesFromEnd } from './ISchema';
 import { Buffer } from 'buffer';
 import { version } from 'punycode';
 import * as Long from 'long';
+import * as Bignum from 'bignum'
+
 
 export interface IpAddress {
   address: string,
@@ -36,7 +38,6 @@ const AddressOrAliasSchema = createSchema<AddressOrAlias>({
     address: (y) => fixedString(y.length)
   })
 })
-
 
 export interface GenesisTransaction {
   timestamp: Long
@@ -277,33 +278,41 @@ export const CreateAliasTransactionSchema = createSchema<CreateAliasTransaction>
   signature: fixedStringBase58(64)
 })
 
-export const TransactionDiscriminatorSchema = createSchema<Transactions>({
+
+const transactionDiscriminator = (x: Transaction): ISchema<any> => {
+  switch (x.type) {
+    case 2:
+      return PaymentTransactionSchema
+    case 3:
+      return IssueTransactionSchema
+    case 4:
+      return TransferTransactionSchema
+    case 5:
+      return ReissueTransactionSchema
+    case 6:
+      return BurnTransactionSchema
+    case 7:
+      return ExchangeTransactionSchema
+    case 8:
+      return LeaseTransactionSchema
+    case 9:
+      return LeaseCancelTransactionSchema
+    case 10:
+      return CreateAliasTransactionSchema
+    default:
+      return fixedBytes(x.size - 1)
+  }
+}
+
+export const TransactionDiscriminatorSchema = createSchema<Transaction>({
   size: int,
   type: byte,
-  body: (x) => {
-    switch (x.type) {
-      case 2:
-        return PaymentTransactionSchema
-      case 3:
-        return IssueTransactionSchema
-      case 4:
-        return TransferTransactionSchema
-      case 5:
-        return ReissueTransactionSchema
-      case 6:
-        return BurnTransactionSchema
-      case 7:
-        return ExchangeTransactionSchema
-      case 8:
-        return LeaseTransactionSchema
-      case 9:
-        return LeaseCancelTransactionSchema
-      case 10:
-        return CreateAliasTransactionSchema
-      default:
-        return fixedBytes(x.size - 1)
-    }
-  }
+  body: transactionDiscriminator
+})
+
+export const TransactionDiscriminatorSchemaNoSize = createSchema<Transaction>({
+  type: byte,
+  body: transactionDiscriminator
 })
 
 export interface Block {
@@ -366,36 +375,39 @@ export const HandshakeSchema = createSchema<Handshake>({
   timestamp: long,
 })
 
-export const ScoreSchema = size => createMessageSchema(24, {
-  score: bigInt(size)
-})
-
 export enum MessageCode {
   GetPeers = 1,
-  GetPeersResponse = 2,
+  Peers = 2,
   GetSignatures = 20,
-  GetSignaturesResponse = 21,
+  Signatures = 21,
   GetBlock = 22,
-  Block = 23
+  Block = 23,
+  Score = 24,
+  Transaction = 25,
+
 }
 
-export type SchemaTypes = IpAddress[] | string[] | Block | void
+export type SchemaTypes = IpAddress[] | string[] | Block | string | Bignum | void | Transaction
 
-export function Schema(code: MessageCode): ISchema<SchemaTypes> {
+export function Schema(code: MessageCode, size: number): ISchema<SchemaTypes> {
   switch (code) {
     case MessageCode.GetPeers:
       return EmptySchema
-    case MessageCode.GetPeersResponse:
+    case MessageCode.Peers:
       return array(IpAddressSchema)
     case MessageCode.GetSignatures:
       return array(fixedStringBase58(64))
-    case MessageCode.GetSignaturesResponse:
+    case MessageCode.Signatures:
       return array(fixedStringBase58(64))
     case MessageCode.GetBlock:
       return fixedStringBase58(64)
     case MessageCode.Block:
       return BlockSchema
+    case MessageCode.Score:
+      return bigInt(size)
+    case MessageCode.Transaction:
+      return TransactionDiscriminatorSchemaNoSize
     default:
-      return FallbackSchema
+      return EmptySchema
   }
 }

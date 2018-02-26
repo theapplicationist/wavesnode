@@ -10,6 +10,7 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
+    "@types/bignum": "0.0.29",
     "@types/command-line-args": "^4.0.2",
     "base-58": "0.0.1",
     "base64-js": "^1.2.1",
@@ -30,6 +31,7 @@
     "node-telegram-bot-api": "^0.30.0",
     "node-uuid": "^1.4.8",
     "rx-lite": "^4.0.8",
+    "rxjs": "^5.5.6",
     "sqlite3": "^3.1.13",
     "uuid": "^3.1.0",
     "waves-api": "^0.21.5"

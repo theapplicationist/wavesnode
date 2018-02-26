@@ -2,7 +2,7 @@ import { array, int, string, byte, bytes, fixedBytes, fixedStringBase58, long, b
 import { BufferBe } from '../src/binary/BufferBE'
 import * as assert from 'assert'
 import { createSchema, createMessageSchema } from '../src/schema/ISchema'
-import { HandshakeSchema, Handshake, BlockSchema } from '../src/schema/messages'
+import { HandshakeSchema, Handshake, BlockSchema, PaymentTransaction } from '../src/schema/messages'
 import { suite, test, slow, timeout } from "mocha-typescript"
 import * as Long from "long"
 import * as fs from 'fs'
@@ -42,7 +42,7 @@ suite('Messages', () => {
     const buffer = BufferBe(fs.readFileSync('./test/blocks/' + blockSignature))
     const block = BlockSchema.decode(buffer)
     assert.equal(block.signature, blockSignature)
-    assert.deepEqual(block.transactions[0].body.amount, Long.fromNumber(7200000000))
+    assert.deepEqual((<PaymentTransaction>block.transactions[0].body).amount, Long.fromNumber(7200000000))
   })
 
   test('genesis block', () => {

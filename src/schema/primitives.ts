@@ -106,5 +106,5 @@ export const array = <T>(schema: ISchema<T>): ISchema<T[]> => ({
 })
 export const bigInt = (size: number): ISchema<Bignum> => ({
   encode: (b, v) => b.writeBytes(v.toBuffer()),
-  decode: b => Bignum.fromBuffer(b.readBytes(size))
+  decode: b => Bignum.fromBuffer(Buffer.from(b.readBytes(size).buffer))
 })

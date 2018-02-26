@@ -1,8 +1,6 @@
 import { NodeConnection } from './nodeConnection'
-import { Observable } from 'rx-lite';
 import { IDictionary } from './generic/IDictionary';
 import { RecurringTask } from './generic/RecurringTask';
-import { connect } from 'http2';
 
 declare global {
   interface Array<T> {
@@ -51,7 +49,7 @@ const getConnection = async (peer, port, networkPrefix): Promise<{ isNew: boolea
 
 export const PeerDiscoverer = (initialPeers: string[], port: number, networkPrefix: string) => {
   knownPeers.push(...initialPeers)
-  RecurringTask(1, async (done) => {
+  RecurringTask(1000, async (done) => {
     const peer = knownPeers.rotate()[0]
     try {
       const { isNew, connection } = await getConnection(peer, port, networkPrefix)

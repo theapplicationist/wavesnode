@@ -1,42 +1,54 @@
-import { Observable, Disposable } from "rx-lite";
-import { setTimeout } from "timers";
+import { setTimeout } from "timers"
+import { Observable, Subscription } from 'rxjs/Rx';
 
-export const RecurringTask = <T>(limit: number, task: (done: (result?: any) => void) => any) => {
-  let counter = 0
+export const RecurringTask = <T>(delay: number, task: (done: (result?: T) => void) => T | void): Observable<T> => {
+  let id: NodeJS.Timer
+  let disposed = false
+  let lastRun = 0
 
-  return Observable.create<T>(observer => {
+  return new Observable<T>(observer => {
 
-    const id = setInterval(() => {
-
-      if (counter >= limit)
-        return
+    const handle = () => {
 
       let doneCalled = false
-      const doneCallback = (result?: any) => {
+      const doneCallback = (result?: T) => {
+
         if (doneCalled)
           return
 
         doneCalled = true
 
-        counter -= 1
-        if (result)
-          observer.onNext(result)
-      }
+        if (result !== undefined) {
+          observer.next(result)
+        }
 
-      const counterBeforeRun = counter
+        if (!disposed) {
+          const d = delay - (Date.now() - lastRun)
+          if (d > 0) {
+            id = setTimeout(handle, d)
+          }
+          else {
+            process.nextTick(handle)
+          }
+        }
+      }
 
       const timeout = setTimeout(() => doneCallback(), 10000)
 
       try {
-        counter += 1
-        task(r => { clearTimeout(timeout); doneCallback(r) })
+        lastRun = Date.now()
+        const result = task(r => { clearTimeout(timeout); doneCallback(r) })
       } catch (error) {
-        if (counterBeforeRun != counter)
-          counter = counterBeforeRun
+
       }
+    }
 
-    }, 1000)
+    if (!disposed)
+      id = setTimeout(handle, delay)
 
-    return Disposable.create(() => clearInterval(id))
+    return new Subscription(() => {
+      disposed = true
+      clearTimeout(id)
+    })
   })
 }
