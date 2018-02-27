@@ -1,26 +1,17 @@
-import { NodeConnection } from "./nodeConnection"
-import ByteBuffer = require('byte-buffer')
-import { Int64BE } from "int64-buffer";
+import * as JSPath from 'jspath';
+import * as WavesAPI from 'waves-api';
+import * as linq from 'linq';
+import { getAddressesFromBlock } from './wavesApi/getAddressesFromBlock';
+import { getBalance } from './wavesApi/getBalance';
 
-Int64BE.prototype.inspect = function(depth, inspectArgs){
-  return this.toString()
-};
-
-
-//const buffer = new ByteBuffer(0, ByteBuffer.BIG_ENDIAN, true)
-const sig = '4kK4yUydwUA12KhVfXMqRkiao4jsScJfWJVSWHqXafoPphrqLXoefKDjpEKR7Pz7bgHbLY6XEBPAuxJy89MGwWmN'
-const obj = { signatures: [{ signature: sig }] }
-//GetSignaturesSchema.encode(buffer, obj)
-//const buffer = serialize(obj, GetSignaturesSchema)
-//console.log(buffer.join(','))
+const Waves = WavesAPI.create(WavesAPI.MAINNET_CONFIG);
 
 async function main() {
-  const c = NodeConnection("173.239.230.7", 6863, 'W')
-  const h = await c.connectAndHandshake()
-  //const s = await c.getBlock(sig)
-  console.log(h)
-  c.close()
+  //console.time('get')
+  const b = await getBalance('3PPvyMuGsNxjGkCaTJvWEGYsgTMWyLG4oJY ')
+  //const a = await getAddressesFromBlock('4Jk7PLSzQ1utkzxftrS8PHA82v3zfPCCfZ4Mr4wonfuq9HWNSa6YucpmVWfWSdBJDwC6KhvvT9PpgYLaed6K13eR')
+  //console.timeEnd('get')
+  console.log(b)
 }
 
 main()
-

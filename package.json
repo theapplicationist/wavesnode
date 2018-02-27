@@ -12,6 +12,7 @@
   "dependencies": {
     "@types/bignum": "0.0.29",
     "@types/command-line-args": "^4.0.2",
+    "axios": "^0.18.0",
     "base-58": "0.0.1",
     "base64-js": "^1.2.1",
     "bignum": "^0.12.5",
@@ -23,6 +24,8 @@
     "expect": "^22.2.2",
     "express": "^4.16.2",
     "highland": "^2.11.1",
+    "jspath": "^0.4.0",
+    "keccak": "^1.4.0",
     "leveldown": "^2.1.1",
     "levelup": "^2.0.1",
     "linq": "^3.0.9",
