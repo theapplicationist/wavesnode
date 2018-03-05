@@ -1,34 +1,51 @@
-import { Page, close, notify, menu, navigate, update, promt } from './framework'
+import { Page, close, notify, menu, navigate, update, promt, AddButton } from './framework'
 import * as TelegramBot from 'node-telegram-bot-api'
 import { KeyValueStore } from '../KeyValueStore';
+import { randomBytes } from 'crypto';
 
 const todoListByUser = {}
 
 const bot = new TelegramBot('537693032:AAGCOljwslLYSGjTpgaD6GoeGwUYnvyRVak', { polling: true });
 
-const mainPage: Page = async (pageContext, addButton) => {
-  addButton(actions.navigate, 'To Page')
+const mainPage: Page = async (pageContext, addButton: AddButton) => {
+  addButton(actions.toTasks, 'Tasks')
   return "Main Page"
 }
 
-const secondPage: Page = async (pageContext, addButton) => {
-  addButton<{ id, name }>(actions.someAction, 'foo', { id: 1, name: 'adf' })
-  addButton(actions.close, 'close')
-  return "Second"
+const tasksPage: Page = async (pageContext, addButton) => {
+  const list = todoListByUser[pageContext.user.id]
+  if (list) {
+    list.forEach(e => {
+      addButton(actions.toTaskDetails, e.name, e.id)
+    });
+  }
+  addButton(actions.addNewTask, 'Add')
+  return "Taks"
 }
 
 const actions = {
-  navigate: async () => navigate(secondPage),
-  someAction: async (context, data: {id, name}) => { 
+  toTaskDetails: async (context, id: string) => close,
+  toTasks: async () => navigate(tasksPage),
+  someAction: async (context, data: { id, name }) => {
     console.log(data)
-    return {} 
+    return {}
   },
   close: async () => close,
   addNewTask: async () => promt(newTaskPromt, 'Name?')
 }
 
-const newTaskPromt = (user: TelegramBot.User, data: any, reply: string) => {
-  todoListByUser[user.id] = [{ id: '', name: reply }]
+const newTaskPromt = async (user: TelegramBot.User, data: any, reply: string) => {
+
+  let list: any[] = todoListByUser[user.id]
+  if (!list) {
+    list = []
+    todoListByUser[user.id] = list
+  }
+
+  list.push({ id: randomBytes(10).toString('base64'), name: reply })
+
+
+  return update
 }
 
 const encodeDecode = {
@@ -38,10 +55,10 @@ const encodeDecode = {
 
 const kvStore = KeyValueStore('testStore', encodeDecode)
 
-const { showPage } = menu(bot, { mainPage, secondPage }, { newTaskPromt }, actions, kvStore, encodeDecode)
+const { showPage } = menu(bot, { mainPage, tasksPage }, { newTaskPromt }, actions, kvStore, encodeDecode)
 
 bot.on('message', (msg: TelegramBot.Message) => {
   //bot.sendMessage(msg.chat.id, 't', { reply_markup: { force_reply: true } })
-  showPage(msg.chat.id, msg.from, mainPage)
+  if (!msg.reply_to_message)
+    showPage(msg.chat.id, msg.from, mainPage)
 })
-
