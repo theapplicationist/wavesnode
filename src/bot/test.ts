@@ -1,13 +1,19 @@
-import { Database } from './Database'
-const db = Database()
+import { KeyValueStore } from './KeyValueStore';
 
-async function main() {
-  const address = '123'
-  const assetId = 'WAVES'
-  const newBalance = '10000'
-  const { $old, $new } = await db.updateBalance(address, assetId, newBalance)
-  console.log($old)
-  console.log($new)
+const encodeDecode = {
+  encode: (obj: any): string => Buffer.from(JSON.stringify(obj), 'utf-8').toString('base64'),
+  decode: (value: string): any => JSON.parse(Buffer.from(value, 'base64').toString('utf-8'))
+}
+
+const kvStore = KeyValueStore('testStore', encodeDecode)
+const complexObject = { name: 'David', age: 24 }
+
+const main = async () => {
+  await kvStore.set('key', complexObject)
+  const r = await kvStore.get('key')
+  console.log(r)
 }
 
 main()
+
+

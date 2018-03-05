@@ -1,40 +1,42 @@
-import { PageFactory, close, notify, menu, navigate, update } from './framework'
+import { Page, close, notify, menu, navigate, update, promt } from './framework'
 import * as TelegramBot from 'node-telegram-bot-api'
+import { KeyValueStore } from '../KeyValueStore';
 
+const todoListByUser = {}
 
-let a = 1
-const bot = new TelegramBot('', { polling: true });
+const bot = new TelegramBot('537693032:AAGCOljwslLYSGjTpgaD6GoeGwUYnvyRVak', { polling: true });
 
-const page1: PageFactory = async (pageContext) => ({
-  text: 'Menu',
-  buttons: ({ 'Page2': async () => navigate(page2), 'Exit': async () => close })
-})
+const mainPage: Page = async (pageContext, addButton) => {
+  addButton(actions.navigate, 'To Page')
+  return "Main Page"
+}
 
-const page2: PageFactory = async (pageContext) => ({
-  text: `Sub menu: ${a}`,
-  buttons: ({
-    'Back': async () => {
-      console.log('back clicked')
-      return [navigate(page1), notify('going back')]
-    },
-    '+': async () => {
-      a++
-      return update
-    },
-    '1': {
-      text: `${a}`,
-      action: async () => {
-        a++
-        return update
-      }
-    }
-  })
-})
+const secondPage: Page = async (pageContext, addButton) => {
+  addButton(actions.close, 'close')
+  return "Second"
+}
 
-const { showPage } = menu(bot, { page1, page2 })
+const actions = {
+  navigate: async () => navigate(secondPage),
+  close: async () => close,
+  addNewTask: async () => promt(newTaskPromt, 'Name?')
+}
+
+const newTaskPromt = (user: TelegramBot.User, data: any, reply: string) => {
+  todoListByUser[user.id] = [{ id: '', name: reply }]
+}
+
+const encodeDecode = {
+  encode: (obj: any): string => Buffer.from(JSON.stringify(obj), 'utf-8').toString('base64'),
+  decode: (value: string): any => JSON.parse(Buffer.from(value, 'base64').toString('utf-8'))
+}
+
+const kvStore = KeyValueStore('testStore', encodeDecode)
+
+const { showPage } = menu(bot, { mainPage, secondPage }, { newTaskPromt }, actions, kvStore, encodeDecode)
 
 bot.on('message', (msg: TelegramBot.Message) => {
-  bot.sendMessage(msg.chat.id, 't', { reply_markup: { force_reply: true } })
-  //showPage(msg.chat.id, msg.from, page1)
+  //bot.sendMessage(msg.chat.id, 't', { reply_markup: { force_reply: true } })
+  showPage(msg.chat.id, msg.from, mainPage)
 })
 

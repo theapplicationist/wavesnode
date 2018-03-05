@@ -41,8 +41,10 @@ const tables = {
   assets: 'assets'
 }
 
+
+
 export const Database = (): IDatabase => {
-  var db = new sqlite('./wavesbalance');
+  var db = new sqlite('./wavesbalance')
 
   db.serialize(() => {
     db.run(`CREATE TABLE IF NOT EXISTS ${tables.wallets} (

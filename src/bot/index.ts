@@ -178,7 +178,6 @@ wn.balances.subscribe(async walletBalances => {
 })
 
 bot.on('message', async (msg: TelegramBot.Message) => {
-  console.log(msg)
   const from = msg.from
   await db.addUser(from.id, from.is_bot == true ? 1 : 0, from.first_name, from.last_name, from.username, from.language_code)
   const user = await db.getUser(from.id.toString())

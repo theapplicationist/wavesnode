@@ -2,11 +2,6 @@ import * as TelegramBot from 'node-telegram-bot-api'
 import { Message, User, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup } from 'node-telegram-bot-api'
 import { IDictionary } from '../../generic/IDictionary';
 
-const J = {
-  encode: (obj: any): string => Buffer.from(JSON.stringify(obj), 'utf-8').toString('base64'),
-  decode: (value: string): any => JSON.parse(Buffer.from(value, 'base64').toString('utf-8'))
-}
-
 type InlineButton = () => Promise<IButtonResult | IButtonResult[]>
 interface Button {
   text: string,
@@ -15,7 +10,7 @@ interface Button {
 
 interface IPage {
   text: string,
-  buttons: IDictionary<InlineButton | Button>
+  buttons: Button[]
 }
 
 interface IPageContext {
@@ -27,87 +22,115 @@ interface IButtonResult {
   close?: boolean
   notify?: string
   update?: boolean
+  promt?: { Id: string, text: string, data: any }
 }
+
+type ButtonAction<T> = (context: IPageContext, data: T) => Promise<IButtonResult>
+type AddButton = <T>(action: ButtonAction<T>, text: string, data?: T) => void
 
 export const close: IButtonResult = { close: true }
 export const update: IButtonResult = { update: true }
 export const notify = (notify: string): IButtonResult => ({ notify })
-export const navigate = (page: PageFactory): IButtonResult => ({ navigate: page.name })
+export const navigate = (page: Page): IButtonResult => ({ navigate: page.name })
+export const promt = <T>(promt: Promt<T>, text: string, data?: T): IButtonResult => ({ promt: { Id: promt.name, data, text } })
 
+export type Page = (context: IPageContext, addButton: AddButton) => Promise<string>
+export type Promt<T> = (user: User, data: T, response: string) => void
+export type KeyValueStorage = { get: <T>(key: string) => Promise<T>, set: <T>(key: string, value: T) => Promise<void> }
+export type ObjToStringEncoderDecoder = { encode: <T>(obj: T) => string, decode: <T>(str: string) => T }
 
-export type PageFactory = (context: IPageContext) => Promise<IPage>
+export const menu = (bot: TelegramBot,
+  pages: IDictionary<Page>,
+  promts: IDictionary<Promt<any>>,
+  actions: IDictionary<ButtonAction<any>>,
+  kvStorage: KeyValueStorage,
+  objToStringEncoderDecoder: ObjToStringEncoderDecoder) => {
 
-export const menu = (bot: TelegramBot, pages: IDictionary<PageFactory>) => {
+  interface CallbackQueryData {
+    pageId: string,
+    actionId: string,
+    data: any
+  }
+
+  const { encode, decode } = objToStringEncoderDecoder
 
   const getPage = (pageId: string) => pages[pageId]
 
+  bot.on('message', async (msg: Message) => {
+    if (msg.reply_to_message) {
+      const r = await kvStorage.get<{ id, data }>(msg.reply_to_message.message_id.toString())
+      if (r) {
+        promts[r.id](msg.from, r.data, msg.text)
+      }
+    }
+  })
+
   bot.on('callback_query', async (callback_query: CallbackQuery) => {
-    const d = J.decode(callback_query.data)
+    const d = decode<CallbackQueryData>(callback_query.data)
     const context = { user: callback_query.from }
-    const page = await getPage(d.pageId)(context)
-
-    const button = page.buttons[d.button]
-    const { buttonAction, buttonText } = (<Button>button).action ? { buttonText: (<Button>button).text, buttonAction: (<Button>button).action } : { buttonText: d.button, buttonAction: <InlineButton>button }
-    const r = await buttonAction()
-
-    const buttonResult: IButtonResult[] = !(<[any]>r).length ? [<IButtonResult>r] : <IButtonResult[]>r
 
     let answer = ''
 
-    buttonResult.forEach(result => {
-      if (result.close) {
-        bot.deleteMessage(callback_query.message.chat.id, callback_query.message.message_id.toString())
-      }
-      if (result.navigate) {
-        updatePage(bot, callback_query.message, callback_query.from, result.navigate)
-      }
-      if (result.update) {
-        updatePage(bot, callback_query.message, callback_query.from, d.pageId)
-      }
-      if (result.notify) {
-        answer = result.notify
-      }
-    })
+    const action = actions[d.actionId]
+    if (action) {
+      const r = await action({ user: callback_query.from }, d.data)
+      const buttonResult: IButtonResult[] = !(<[any]>r).length ? [<IButtonResult>r] : <IButtonResult[]>r
 
+      buttonResult.forEach(async result => {
+        if (result.close) {
+          bot.deleteMessage(callback_query.message.chat.id, callback_query.message.message_id.toString())
+        }
+        if (result.navigate) {
+          updatePage(callback_query.message, callback_query.from, result.navigate)
+        }
+        if (result.update) {
+          updatePage(callback_query.message, callback_query.from, d.pageId)
+        }
+        if (result.promt) {
+          const r = await bot.sendMessage(callback_query.message.chat.id, result.promt.text, { reply_markup: { force_reply: true } }) as Message
+          await kvStorage.set(r.message_id.toString(), { id: result.promt.Id, data: result.promt.data })
+        }
+        if (result.notify) {
+          answer = result.notify
+        }
+      })
+    }
     bot.answerCallbackQuery({ callback_query_id: callback_query.id, text: answer })
   })
 
-  const prepareReplyMarkup = (pageId: string, page: IPage): InlineKeyboardMarkup => (
+  const prepareReplyMarkup = (buttons: { text: string, callback: string }[]): InlineKeyboardMarkup => (
     {
       inline_keyboard: [
-        Object.keys(page.buttons).map((buttonId: string): InlineKeyboardButton => {
-          const button = page.buttons[buttonId]
-          const { buttonAction, buttonText } = (<Button>button).action ? { buttonText: (<Button>button).text, buttonAction: (<Button>button).action } : { buttonText: buttonId, buttonAction: button }
-
-          const callback_data = {
-            pageId,
-            button: buttonId
-          }
-
-          return {
-            text: buttonText,
-            callback_data: J.encode(callback_data)
-          }
-        }
-        )
+        buttons.map(v => ({
+          text: v.text,
+          callback_data: v.callback
+        }))
       ]
     }
   )
 
-  const updatePage = async (bot: TelegramBot, message: Message, user: User, pageId: string) => {
-    const p = await getPage(pageId)({ user })
+  const buildPage = async (context: IPageContext, page: Page) => {
+    const pageId = page.name
 
-    const r = prepareReplyMarkup(pageId, p)
+    const buttons: { text: string, callback: string }[] = []
+    const addButton: AddButton = <T>(action: ButtonAction<T>, text: string, data?: T) => {
+      const callback = objToStringEncoderDecoder.encode(<CallbackQueryData>{ pageId, actionId: action.name, data })
+      buttons.push({ text, callback })
+    }
+    const text = await page(context, addButton)
+    const replyMarkup = prepareReplyMarkup(buttons)
 
-    bot.editMessageText(p.text, { chat_id: message.chat.id, message_id: message.message_id, reply_markup: r })
+    return { text, replyMarkup }
   }
 
-  const showPage = async (chatId: string | number, user: User, page: PageFactory) => {
-    const pageId = page.name
-    const p = await page({ user })
-    const r = prepareReplyMarkup(pageId, p)
+  const updatePage = async (message: Message, user: User, pageId: string) => {
+    const { text, replyMarkup } = await buildPage({ user }, pages[pageId])
+    bot.editMessageText(text, { chat_id: message.chat.id, message_id: message.message_id, reply_markup: replyMarkup })
+  }
 
-    bot.sendMessage(chatId, p.text, { reply_markup: r })
+  const showPage = async (chatId: string | number, user: User, page: Page) => {
+    const { text, replyMarkup } = await buildPage({ user }, page)
+    bot.sendMessage(chatId, text, { reply_markup: replyMarkup })
   }
 
   return { showPage }
