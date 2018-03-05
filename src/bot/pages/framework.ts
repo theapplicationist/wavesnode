@@ -115,6 +115,7 @@ export const menu = (bot: TelegramBot,
     const buttons: { text: string, callback: string }[] = []
     const addButton: AddButton = <T>(action: ButtonAction<T>, text: string, data?: T) => {
       const callback = objToStringEncoderDecoder.encode(<CallbackQueryData>{ pageId, actionId: action.name, data })
+      console.log(callback.length)
       buttons.push({ text, callback })
     }
     const text = await page(context, addButton)

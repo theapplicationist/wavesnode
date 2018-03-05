@@ -12,12 +12,17 @@ const mainPage: Page = async (pageContext, addButton) => {
 }
 
 const secondPage: Page = async (pageContext, addButton) => {
+  addButton<{ id, name }>(actions.someAction, 'foo', { id: 1, name: 'adf' })
   addButton(actions.close, 'close')
   return "Second"
 }
 
 const actions = {
   navigate: async () => navigate(secondPage),
+  someAction: async (context, data: {id, name}) => { 
+    console.log(data)
+    return {} 
+  },
   close: async () => close,
   addNewTask: async () => promt(newTaskPromt, 'Name?')
 }
