@@ -22,20 +22,27 @@ export interface IButtonResult {
   navigate?: string
   close?: boolean
   notify?: string
-  update?: boolean
+  update?: 'redraw' | 'update'
   promt?: { Id: string, text: string, data: any }
 }
 
+export type AddButton = <T>(action: ButtonAction<T>, text: string, data?: T) => PageCreationCommands
+export type LineBreak = () => PageCreationCommands
+
+export type PageCreationCommands = {
+  add: AddButton
+  lineBreak: LineBreak
+}
+
 export type ButtonAction<T> = (context: IPageContext, data: T) => Promise<IButtonResult>
-export type AddButton = <T>(action: ButtonAction<T>, text: string, data?: T) => void
 
 export const close: IButtonResult = { close: true }
-export const update: IButtonResult = { update: true }
+export const update: IButtonResult = { update: 'update' }
 export const notify = (notify: string): IButtonResult => ({ notify })
 export const navigate = (page: Page): IButtonResult => ({ navigate: page.name })
 export const promt = <T>(promt: Promt<T>, text: string, data?: T): IButtonResult => ({ promt: { Id: promt.name, data, text } })
 
-export type Page = (context: IPageContext, addButton: AddButton) => Promise<string>
+export type Page = (context: IPageContext, commands: PageCreationCommands) => Promise<string>
 export type Promt<T> = (user: User, data: T, response: string) => Promise<IButtonResult>
 export type KeyValueStorage = { get: <T>(key: string) => Promise<T>, set: <T>(key: string, value: T) => Promise<void> }
 export type ObjToStringEncoderDecoder = { encode: <T>(obj: T) => string, decode: <T>(str: string) => T }
@@ -70,7 +77,11 @@ export const menu = (bot: TelegramBot,
       const promtData = await kvStorage.get<PromtData>(msg.reply_to_message.message_id.toString())
       if (promtData) {
         const result = await promts[promtData.promtId](msg.from, promtData.data, msg.text)
-        handleButtonResult(result, msg.from, promtData.chatId, promtData.messageId, promtData.pageId)
+        result.update = result.update ? 'redraw' : undefined
+        const answer = await handleButtonResult(result, msg.from, promtData.chatId, promtData.messageId, promtData.pageId)
+        if (answer) {
+          redrawPage(promtData.chatId, promtData.messageId, msg.from, promtData.pageId, answer)
+        }
       }
     }
   })
@@ -106,7 +117,10 @@ export const menu = (bot: TelegramBot,
       updatePage(chatId, messageId, user, result.navigate)
     }
     if (result.update) {
-      redrawPage(chatId, messageId, user, pageId)
+      if (result.update == 'update')
+        updatePage(chatId, messageId, user, pageId)
+      else
+        redrawPage(chatId, messageId, user, pageId)
     }
     if (result.promt) {
       const r = await bot.sendMessage(chatId, result.promt.text, { reply_markup: { force_reply: true } }) as Message
@@ -138,43 +152,71 @@ export const menu = (bot: TelegramBot,
 
   const buildPage = async (context: IPageContext, page: Page) => {
     const pageId = page.name
-
-    const buttons: { text: string, callback: string }[] = []
-    const addButton: AddButton = <T>(action: ButtonAction<T>, text: string, data?: T) => {
+    const buttons: { text: string, callback: string }[][] = []
+    let current = []
+    buttons.push(current)
+    const add: AddButton = <T>(action: ButtonAction<T>, text: string, data?: T) => {
       const callback = objToStringEncoderDecoder.encode(<CallbackQueryData>{ pageId, actionId: action.name, data })
-      buttons.push({ text, callback })
+      current.push({ text, callback })
+      return commands
     }
 
-    const text = await page(context, addButton)
+    const lineBreak: LineBreak = () => {
+      current = []
+      buttons.push(current)
+      return commands
+    }
+
+    const commands: PageCreationCommands = {
+      add,
+      lineBreak
+    }
+
+    const text = await page(context, commands)
     const replyMarkup = {
-      inline_keyboard: [
-        buttons.map(v => {
-          const c = randomBytes(10).toString('base64')
-          kvStorage.set(c, v.callback)
-          return {
-            text: v.text,
-            callback_data: c
-          }
-        })
-      ]
+      inline_keyboard: buttons.filter(b => b.length > 0).map(btns => btns.map(v => {
+        const c = randomBytes(10).toString('base64')
+        kvStorage.set(c, v.callback)
+        return {
+          text: v.text,
+          callback_data: c
+        }
+      }))
     }
 
     return { text, replyMarkup }
   }
 
-  const updatePage = async (chatId: string, messageId: string, user: User, pageId: string) => {
+  const updatePage = async (chatId: string, messageId: string, user: User, pageId: string, notification: string = '') => {
     const { text, replyMarkup } = await buildPage({ user }, pages[pageId])
-    bot.editMessageText(text, { chat_id: chatId, message_id: parseInt(messageId), reply_markup: replyMarkup })
+    const options = {
+      chat_id: chatId,
+      message_id: parseInt(messageId),
+      reply_markup: replyMarkup,
+      parse_mode: notification.length > 0 ? 'Markdown' : undefined,
+    }
+
+    const finalText = notification.length > 0 ? `\`${notification}\`  ` + text : text
+
+    bot.editMessageText(finalText, options)
   }
 
-  const redrawPage = async (chatId: string, messageId: string, user: User, pageId: string) => {
+  const redrawPage = async (chatId: string, messageId: string, user: User, pageId: string, notification: string = '') => {
     bot.deleteMessage(chatId, messageId)
-    showPage(chatId, user, pages[pageId])
+    showPage(chatId, user, pages[pageId], notification)
   }
 
-  const showPage = async (chatId: string | number, user: User, page: Page) => {
+  const showPage = async (chatId: string | number, user: User, page: Page, notification: string = '') => {
     const { text, replyMarkup } = await buildPage({ user }, page)
-    bot.sendMessage(chatId, text, { reply_markup: replyMarkup })
+
+    const options = {
+      reply_markup: replyMarkup,
+      parse_mode: notification.length > 0 ? 'Markdown' : undefined,
+    }
+
+    const finalText = notification.length > 0 ? `\`${notification}\`  ` + text : text
+
+    bot.sendMessage(chatId, finalText, options)
   }
 
   return { showPage }

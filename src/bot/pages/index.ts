@@ -1,4 +1,4 @@
-import { Page, close, notify, menu, navigate, update, promt, AddButton } from './framework'
+import { Page, close, notify, menu, navigate, update, promt, AddButton, PageCreationCommands } from './framework'
 import * as TelegramBot from 'node-telegram-bot-api'
 import { KeyValueStore } from '../KeyValueStore';
 import { randomBytes } from 'crypto';
@@ -7,19 +7,22 @@ const todoListByUser = {}
 
 const bot = new TelegramBot('537693032:AAGCOljwslLYSGjTpgaD6GoeGwUYnvyRVak', { polling: true });
 
-const mainPage: Page = async (pageContext, addButton: AddButton) => {
-  addButton(actions.toTasks, 'Tasks')
+const mainPage: Page = async (pageContext, cmd: PageCreationCommands) => {
+  cmd.add(actions.toTasks, 'Tasks')
   return "Main Page"
 }
 
-const tasksPage: Page = async (pageContext, addButton) => {
+const tasksPage: Page = async (pageContext, cmd: PageCreationCommands) => {
   const list = todoListByUser[pageContext.user.id]
   if (list) {
     list.forEach(e => {
-      addButton(actions.toTaskDetails, e.name, e.id)
+      cmd
+        .add(actions.toTaskDetails, e.name, e.id)
     });
   }
-  addButton(actions.addNewTask, 'Add')
+  cmd
+    .lineBreak()
+    .add(actions.addNewTask, 'Add')
   return "Taks"
 }
 
@@ -35,17 +38,13 @@ const actions = {
 }
 
 const newTaskPromt = async (user: TelegramBot.User, data: any, reply: string) => {
-
   let list: any[] = todoListByUser[user.id]
   if (!list) {
     list = []
     todoListByUser[user.id] = list
   }
-
   list.push({ id: randomBytes(10).toString('base64'), name: reply })
-
-
-  return update
+  return notify(`${reply} added`)
 }
 
 const encodeDecode = {
