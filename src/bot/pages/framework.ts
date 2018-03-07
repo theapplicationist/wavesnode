@@ -14,11 +14,13 @@ interface IPage {
   buttons: Button[]
 }
 
-interface IPageContext {
+export interface IContext<T> {
   user: User
+  data?: T
 }
 
 export interface IButtonResult {
+  data?: any
   navigate?: string
   close?: boolean
   notify?: string
@@ -34,21 +36,21 @@ export type PageCreationCommands = {
   lineBreak: LineBreak
 }
 
-export type ButtonAction<T> = (context: IPageContext, data: T) => Promise<IButtonResult>
+export type ButtonAction<T> = (context: IContext<T>) => Promise<IButtonResult>
 
 export const close: IButtonResult = { close: true }
 export const update: IButtonResult = { update: 'update' }
 export const notify = (notify: string): IButtonResult => ({ notify })
-export const navigate = (page: Page): IButtonResult => ({ navigate: page.name })
+export const navigate = <T>(page: Page<T>, data?: T): IButtonResult => ({ navigate: page.name, data })
 export const promt = <T>(promt: Promt<T>, text: string, data?: T): IButtonResult => ({ promt: { Id: promt.name, data, text } })
 
-export type Page = (context: IPageContext, commands: PageCreationCommands) => Promise<string>
+export type Page<T> = (context: IContext<T>, commands: PageCreationCommands) => Promise<string>
 export type Promt<T> = (user: User, data: T, response: string) => Promise<IButtonResult>
 export type KeyValueStorage = { get: <T>(key: string) => Promise<T>, set: <T>(key: string, value: T) => Promise<void> }
 export type ObjToStringEncoderDecoder = { encode: <T>(obj: T) => string, decode: <T>(str: string) => T }
 
 export const menu = (bot: TelegramBot,
-  pages: IDictionary<Page>,
+  pages: IDictionary<Page<any>>,
   promts: IDictionary<Promt<any>>,
   actions: IDictionary<ButtonAction<any>>,
   kvStorage: KeyValueStorage,
@@ -95,7 +97,7 @@ export const menu = (bot: TelegramBot,
 
     const action = actions[d.actionId]
     if (action) {
-      const r = await action({ user: cq.from }, d.data)
+      const r = await action({ user: cq.from, data: d.data })
       const buttonResult: IButtonResult[] = !(<[any]>r).length ? [<IButtonResult>r] : <IButtonResult[]>r
 
       buttonResult.forEach(async result => {
@@ -114,11 +116,11 @@ export const menu = (bot: TelegramBot,
       bot.deleteMessage(chatId, messageId)
     }
     if (result.navigate) {
-      updatePage(chatId, messageId, user, result.navigate)
+      updatePage(chatId, messageId, user, result.navigate, undefined, result.data)
     }
     if (result.update) {
       if (result.update == 'update')
-        updatePage(chatId, messageId, user, pageId)
+        updatePage(chatId, messageId, user, pageId, undefined, result.data)
       else
         redrawPage(chatId, messageId, user, pageId)
     }
@@ -139,23 +141,12 @@ export const menu = (bot: TelegramBot,
     return ''
   }
 
-  const prepareReplyMarkup = (buttons: { text: string, callback: string }[]): InlineKeyboardMarkup => (
-    {
-      inline_keyboard: [
-        buttons.map(v => ({
-          text: v.text,
-          callback_data: v.callback
-        }))
-      ]
-    }
-  )
-
-  const buildPage = async (context: IPageContext, page: Page) => {
+  const buildPage = async <T>(context: IContext<T>, page: Page<T>) => {
     const pageId = page.name
     const buttons: { text: string, callback: string }[][] = []
     let current = []
     buttons.push(current)
-    const add: AddButton = <T>(action: ButtonAction<T>, text: string, data?: T) => {
+    const add: AddButton = <F>(action: ButtonAction<F>, text: string, data?: F) => {
       const callback = objToStringEncoderDecoder.encode(<CallbackQueryData>{ pageId, actionId: action.name, data })
       current.push({ text, callback })
       return commands
@@ -187,8 +178,8 @@ export const menu = (bot: TelegramBot,
     return { text, replyMarkup }
   }
 
-  const updatePage = async (chatId: string, messageId: string, user: User, pageId: string, notification: string = '') => {
-    const { text, replyMarkup } = await buildPage({ user }, pages[pageId])
+  const updatePage = async (chatId: string, messageId: string, user: User, pageId: string, notification: string = '', data: any = undefined) => {
+    const { text, replyMarkup } = await buildPage({ user, data }, pages[pageId])
     const options = {
       chat_id: chatId,
       message_id: parseInt(messageId),
@@ -206,8 +197,8 @@ export const menu = (bot: TelegramBot,
     showPage(chatId, user, pages[pageId], notification)
   }
 
-  const showPage = async (chatId: string | number, user: User, page: Page, notification: string = '') => {
-    const { text, replyMarkup } = await buildPage({ user }, page)
+  const showPage = async <T>(chatId: string | number, user: User, page: Page<T>, notification: string = '', data: T = undefined) => {
+    const { text, replyMarkup } = await buildPage({ user, data }, page)
 
     const options = {
       reply_markup: replyMarkup,
