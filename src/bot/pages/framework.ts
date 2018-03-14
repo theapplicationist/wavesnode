@@ -46,7 +46,10 @@ export const promt = <T>(promt: Promt<T>, text: string, data?: T): IButtonResult
 
 export type Page<T> = (context: IContext<T>, commands: PageCreationCommands) => Promise<string>
 export type Promt<T> = (user: User, data: T, response: string) => Promise<IButtonResult>
-export type KeyValueStorage = { get: <T>(key: string) => Promise<T>, set: <T>(key: string, value: T) => Promise<void> }
+export type KeyValueStorage = {
+  get: <T>(key: string) => Promise<T>,
+  set: <T>(key: string, value: T) => Promise<void>
+}
 export type ObjToStringEncoderDecoder = { encode: <T>(obj: T) => string, decode: <T>(str: string) => T }
 
 export const menu = (bot: TelegramBot,
@@ -207,7 +210,9 @@ export const menu = (bot: TelegramBot,
 
     const finalText = notification.length > 0 ? `\`${notification}\`  ` + text : text
 
-    bot.sendMessage(chatId, finalText, options)
+    const msg = <Message>(await bot.sendMessage(chatId, finalText, options))
+    
+    return msg
   }
 
   return { showPage }

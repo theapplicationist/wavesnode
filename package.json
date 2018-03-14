@@ -12,6 +12,7 @@
   "dependencies": {
     "@types/bignum": "0.0.29",
     "@types/command-line-args": "^4.0.2",
+    "@types/gregorian-calendar": "^4.1.5",
     "@types/sqlite3": "^3.1.1",
     "axios": "^0.18.0",
     "base-58": "0.0.1",
@@ -25,6 +26,7 @@
     "exit-hook": "^1.1.1",
     "expect": "^22.2.2",
     "express": "^4.16.2",
+    "gregorian-calendar": "^4.1.6",
     "highland": "^2.11.1",
     "jspath": "^0.4.0",
     "keccak": "^1.4.0",

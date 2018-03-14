@@ -1,12 +1,28 @@
 import { Page, close, notify, menu, navigate, update, promt, AddButton, PageCreationCommands, IContext } from './framework'
 import * as TelegramBot from 'node-telegram-bot-api'
-import { KeyValueStore } from '../KeyValueStore';
-import { randomBytes } from 'crypto';
-import { IDictionary } from '../../generic/IDictionary';
+import { KeyValueStore } from '../KeyValueStore'
+import { randomBytes } from 'crypto'
+import { IDictionary } from '../../generic/IDictionary'
+
+import GregorianCalendar = require('gregorian-calendar')
+
+const getDayOfWeek = (d: Date) => {
+  var date = new GregorianCalendar(require('gregorian-calendar/lib/locale/ru_RU')); // defaults to en_US 
+  date.setTime(+d)
+  return date.getDayOfWeek()
+}
 
 const todoListByUser: IDictionary<{ id: string, name: string }[]> = {}
 
 const bot = new TelegramBot('537693032:AAGCOljwslLYSGjTpgaD6GoeGwUYnvyRVak', { polling: true });
+
+const commands = {
+  newGame: {
+    aiases: ['/newGame'],
+
+  }
+}
+
 
 const pages = {
   main: async (_, cmd: PageCreationCommands) => {
@@ -69,8 +85,47 @@ const kvStore = KeyValueStore('testStore', encodeDecode)
 
 const { showPage } = menu(bot, pages, promts, actions, kvStore, encodeDecode)
 
-bot.on('message', (msg: TelegramBot.Message) => {
-  //bot.sendMessage(msg.chat.id, 't', { reply_markup: { force_reply: true } })
-  if (!msg.reply_to_message)
-    showPage(msg.chat.id, msg.from, pages.main)
+type Player = {}
+type Game = {
+  message: TelegramBot.Message
+  started: Date
+  whoIsComing: Player[]
+}
+
+type BotState = {
+  game?: Game
+}
+
+const BotState = async () => {
+  const s = await kvStore.get<BotState>("state")
+  if (s) return s
+  return {}
+}
+
+const createGameOrUseExisting = (game?: Game): Game => {
+  if (game) {
+
+  } else {
+    const now = new Date()
+    //now getDayOfWeek(now)
+    return {
+
+    }
+  }
+}
+
+bot.on('message', async (msg: TelegramBot.Message) => {
+  if (msg.text = "/newgame") {
+    const s = await BotState()
+
+    if (s.game) {
+      bot.deleteMessage(s.game.message.chat.id, s.game.message.message_id.toString())
+      if (getDayOfWeek(s.game.started) > 4) {
+
+      }
+      //if (s.game.started)
+    }
+    const m = await showPage(msg.chat.id, msg.from, pages.main)
+
+  }
 })
