@@ -34,6 +34,6 @@ export const validateAddress = (base58Address: string) => {
     }
     return true
   } catch (ex) {
-
+    console.log(ex)
   }
 }

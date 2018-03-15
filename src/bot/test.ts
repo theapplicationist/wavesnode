@@ -1,19 +1,10 @@
 import { KeyValueStore } from './KeyValueStore';
+import { validateAddress } from './WavesCrypto';
+const WavesAPI = require('waves-api');
+const Waves = WavesAPI.create(WavesAPI.MAINNET_CONFIG);
+const pk = '7kPFrHDiGw1rCm7LPszuECwWYL3dMf6iMifLRDJQZMzy'
+const address = Waves.tools.getAddressFromPublicKey(pk);
+console.log(address); // '3N1JKsPcQ5x49utR79Maey4tbjssfrn2RYp'
 
-const encodeDecode = {
-  encode: (obj: any): string => Buffer.from(JSON.stringify(obj), 'utf-8').toString('base64'),
-  decode: (value: string): any => JSON.parse(Buffer.from(value, 'base64').toString('utf-8'))
-}
-
-const kvStore = KeyValueStore('testStore', encodeDecode)
-const complexObject = { name: 'David', age: 24 }
-
-const main = async () => {
-  await kvStore.set('key', complexObject)
-  const r = await kvStore.get('key')
-  console.log(r)
-}
-
-main()
-
-
+const c = validateAddress('3PNrgtrYxmQYwFydrdE2YojrQyX7XLuDUyH')
+console.log(c)

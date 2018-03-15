@@ -1,8 +1,11 @@
 import { Database as sqlite } from 'sqlite3'
 
-type ObjToStringEncoderDecoder = { encode: <T>(obj: T) => string, decode: <T>(str: string) => T }
+const encodeDecode = {
+  encode: <T>(obj: T): string => JSON.stringify(obj),
+  decode: <T>(value: string): T => JSON.parse(value)
+}
 
-export const KeyValueStore = (fileName: string, encodeDecode: ObjToStringEncoderDecoder) => {
+export const KeyValueStore = <T>(fileName: string) => {
   const db = new sqlite(fileName)
   const { encode, decode } = encodeDecode
 
@@ -12,35 +15,68 @@ export const KeyValueStore = (fileName: string, encodeDecode: ObjToStringEncoder
     value TEXT)`)
   })
 
-  const set = <T>(key: string, value: T): Promise<void> => new Promise((resolve, reject) => {
+  const insert = (key: string, value: T): Promise<boolean> => new Promise((resolve, reject) => {
     const $value = encode(value)
     db.serialize(() => {
-      db.run('INSERT OR IGNORE INTO kvstore (key, value) VALUES ($key, $value)', { $key: key, $value }, function (err) {
-        if (err) reject(err)
-        else resolve()
+      db.run(`INSERT OR IGNORE INTO kvstore (key, value) VALUES ($key, $value)`, { $key: key, $value }, function (err) {
+        if (err) resolve(false)
+        else resolve(this.changes > 0)
       })
     })
   })
 
-  const get = <T>(key: string): Promise<T | undefined> => new Promise((resolve, reject) => {
+  const update = (key: string, value: T, insertIfNotExists: boolean = true): Promise<boolean> => new Promise((resolve, reject) => {
+    const $value = encode(value)
     db.serialize(() => {
-      db.get('SELECT * FROM kvstore WHERE key == $key', { $key: key }, function (err, row) {
+      let sql = 'UPDATE kvstore SET value = $value WHERE key = $key'
+      if (insertIfNotExists)
+        sql = 'INSERT OR REPLACE INTO kvstore (key, value) VALUES ($key, $value)'
+      db.run(sql, { $key: key, $value }, function (err) {
+        if (err) resolve(false)
+        else resolve(true)
+      })
+    })
+  })
+
+  const get = (key: string, remove: boolean = false): Promise<{ key: string, value: T } | undefined> => new Promise((resolve, reject) => {
+    db.serialize(() => {
+      const params = key ? { $key: key } : undefined
+      db.get(`SELECT * FROM kvstore${key ? ' WHERE key == $key ' : ' '}LIMIT 1`, params, function (err, row) {
         if (err) {
           console.log(err)
           resolve(undefined)
         }
         else {
-          try {
-            resolve(decode<T>(row.value))
+          const result = (err, row) => {
+            if (err) {
+              console.log(err)
+              resolve(undefined)
+              return
+            }
+            if (!row) {
+              resolve(undefined)
+              return
+            }
+            try {
+              resolve({ key: row.key, value: decode<T>(row.value) })
+            }
+            catch (ex) {
+              console.log(ex)
+              resolve(undefined)
+            }
           }
-          catch (ex) {
-            console.log(ex)
-            resolve(undefined)
+          if (remove && row) {
+            db.run('DELETE FROM kvstore WHERE key = $key', { $key: row.key }, function (err, _) {
+              result(err, row)
+            })
+          }
+          else {
+            result(undefined, row)
           }
         }
       })
     })
   })
 
-  return { get, set }
+  return { get, insert, update }
 }

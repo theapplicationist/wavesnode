@@ -31,7 +31,8 @@ export const Text = {
     wallets_menu_header: 'Вот твои кошельки:',
     wallets_menu_no_wallets: 'Тут пока пусто. Отправь мне адрес waves кошелька, чтобы начать получать уведомления.',
     wallet_renamed: (address, name) => `${address}\nпереименован: ${name}`,
-    address_not_valid: 'Похоже адрес неправильный, может это не waves? Попробуй проверить и повторить ;)'
+    address_not_valid: 'Похоже адрес неправильный, может это не waves? Попробуй проверить и повторить ;)',
+    and_more: (amount) => `\n... и ${amount} еще`
   },
   en: {
     start: `Hey! I can notify you about balance changes of your wallets. Send me a waves wallet address and I will start to notify you.`,
@@ -55,6 +56,7 @@ export const Text = {
     wallets_menu_header: 'Manage your wallets:',
     wallets_menu_no_wallets: 'No wallets yet. You can send me a waves wallet address to enable notifications.',
     wallet_renamed: (address, name) => `${address}\nrenamed: ${name}`,
-    address_not_valid: 'It seems that address is not a valid one or maybe it`s not a waves wallet? Double-check everything and try again ;)'
+    address_not_valid: 'It seems that address is not a valid one or maybe it`s not a waves wallet? Double-check everything and try again ;)',
+    and_more: (amount) => `\n... and ${amount} more`
   }
 }

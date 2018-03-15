@@ -12,7 +12,7 @@ import { getBalance, wavesAsset } from '../wavesApi/getBalance';
 
 
 const db = Database()
-const bot = new TelegramBot(Secret.telegrammToken, { polling: true });
+const bot = new TelegramBot('537693032:AAGCOljwslLYSGjTpgaD6GoeGwUYnvyRVak', { polling: true });
 const wn = WavesNotifications(db)
 const commands = {
   help: '/help',
@@ -161,8 +161,10 @@ wn.balances.subscribe(async walletBalances => {
 
     const oldNewPairs = await Promise.all(Object.keys(balances).map(assetId => db.updateBalance(address, assetId, balances[assetId])))
 
+    const changed = oldNewPairs.filter(p => !p.$old || p.$old.$balance != p.$new.$balance)
+
     const prints = await Promise.all(
-      oldNewPairs.filter(p => !p.$old || p.$old.$balance != p.$new.$balance).map(async p => {
+      changed.slice(0, 10).map(async p => {
         const asset = await db.getAsset(p.$new.$assetId)
         return formatAsset(asset, p.$new.$balance.toString())
       }))
@@ -171,7 +173,9 @@ wn.balances.subscribe(async walletBalances => {
       subs.forEach(async id => {
         const user = await db.getUser(id.userId)
         const a = id.alias ? id.alias : address
-        bot.sendMessage(id.userId, `*${a}*\n${prints.join('\n')}`, { parse_mode: 'Markdown' })
+        
+        const more = changed.length > prints.length ? Text[user.language_code].and_more(changed.length - prints.length) : ''
+        bot.sendMessage(id.userId, `*${a}*\n${prints.join('\n')}` + more, { parse_mode: 'Markdown' })
       })
     }
   }
@@ -290,6 +294,9 @@ bot.on('callback_query', async (callback: TelegramBot.CallbackQuery) => {
             s[0].disabled = 0
           }
           await db.updateUserSubscription(s[0])
+          if (s[0].disabled == 0) {
+            wn.addWallet(s[0].address)
+          }
           const keyboard = await walletsKeyboardForUser(user.id)
           bot.answerCallbackQuery({ callback_query_id: callback.id, text: s[0].disabled ? Text[user.language_code].wallet_disabled : Text[user.language_code].wallet_enabled })
           bot.editMessageReplyMarkup({ inline_keyboard: keyboard }, { chat_id: user.id, message_id: callback.message.message_id })
