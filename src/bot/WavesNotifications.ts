@@ -5,7 +5,7 @@ import { ObservableNodeConnection } from '../observableNodeConnection';
 import { MessageCode } from '../schema/messages';
 import { Observable, Subscription, Subscriber, Subject, ReplaySubject } from 'rxjs/Rx';
 import { IDatabase } from './Database';
-import { KeyValueStore } from "./KeyValueStore";
+import { KeyValueStoreTyped } from "./KeyValueStore";
 import { getLastBlockSignature } from "../wavesApi/getLastBlockSignature";
 import { getAddressesFromBlock, getLastBlock, getBlock, getNextBlock, getLastSolidBlock, getNextSolidBlock } from "../wavesApi/blocks";
 
@@ -16,8 +16,8 @@ export interface IWalletNotifications {
 
 export const WavesNotifications = (db: IDatabase): IWalletNotifications => {
 
-  const storage = KeyValueStore<string>('storage')
-  const accountsToUpdate = KeyValueStore<string>('accountsToUpdate')
+  const storage = KeyValueStoreTyped<string>('storage')
+  const accountsToUpdate = KeyValueStoreTyped<string>('accountsToUpdate')
 
   let started = false
 

@@ -22,3 +22,8 @@ gulp.task('copy-web', function () {
 gulp.task('default', gulp.series('clean', 'compile', 'copy-web', function (done) {
   done()
 }))
+
+gulp.task('ballfootbot', function (done) {
+  gulp.src('dist/ballfootbot/', { allowEmpty: true })
+    .pipe(clean())
+})

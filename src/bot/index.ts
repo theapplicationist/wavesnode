@@ -7,7 +7,7 @@ import { validateAddress } from './WavesCrypto';
 import { Secret } from './Secret';
 import { IDictionary } from '../generic/IDictionary';
 import { IAsset } from '../wavesApi/IAsset';
-import { formatAsset } from '../wavesApi/formatAsset';
+import { formatAsset, formatAssetBalance } from '../wavesApi/formatAsset';
 import { getBalance, wavesAsset } from '../wavesApi/getBalance';
 
 
@@ -166,14 +166,24 @@ wn.balances.subscribe(async walletBalances => {
     const prints = await Promise.all(
       changed.slice(0, 10).map(async p => {
         const asset = await db.getAsset(p.$new.$assetId)
-        return formatAsset(asset, p.$new.$balance.toString())
+        let change = ''
+        if (p.$old)
+          try {
+            const d = parseInt(p.$new.$balance) - parseInt(p.$old.$balance)
+            if (d != 0) {
+              change = ` (${d > 0 ? '+' : '-'}${formatAssetBalance(asset, d.toString())})`
+            }
+          } catch {
+
+          }
+        return formatAsset(asset, p.$new.$balance.toString()) + change
       }))
 
     if (prints.length > 0) {
       subs.forEach(async id => {
         const user = await db.getUser(id.userId)
         const a = id.alias ? id.alias : address
-        
+
         const more = changed.length > prints.length ? Text[user.language_code].and_more(changed.length - prints.length) : ''
         bot.sendMessage(id.userId, `*${a}*\n${prints.join('\n')}` + more, { parse_mode: 'Markdown' })
       })

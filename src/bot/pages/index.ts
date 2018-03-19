@@ -1,131 +1,129 @@
-import { Page, close, notify, menu, navigate, update, promt, AddButton, PageCreationCommands, IContext } from './framework'
+import { Page, close, notify, menu, navigate, update, promt, AddButton, PageCreationCommands, IContext, updateAndNotify } from './framework'
 import * as TelegramBot from 'node-telegram-bot-api'
-import { KeyValueStore } from '../KeyValueStore'
-import { randomBytes } from 'crypto'
+import { KeyValueStore } from '../../generic/KeyValueStore'
 import { IDictionary } from '../../generic/IDictionary'
+import * as moment from 'moment'
 
-import GregorianCalendar = require('gregorian-calendar')
-
-const getDayOfWeek = (d: Date) => {
-  var date = new GregorianCalendar(require('gregorian-calendar/lib/locale/ru_RU')); // defaults to en_US 
-  date.setTime(+d)
-  return date.getDayOfWeek()
+const config = {
+  dayOfTheGame: 2,
+  hoursToOpenRegistration: 90
 }
 
-const todoListByUser: IDictionary<{ id: string, name: string }[]> = {}
+const kvStore = KeyValueStore('footballBot')
+moment.locale('ru')
 
-const bot = new TelegramBot('537693032:AAGCOljwslLYSGjTpgaD6GoeGwUYnvyRVak', { polling: true });
+const nextGameDate = () => {
+  let d = moment().day() - config.dayOfTheGame
+  if (d <= 0)
+    d += 7
 
-const commands = {
-  newGame: {
-    aiases: ['/newGame'],
-
-  }
+  const prevGameDate = moment().startOf('day').subtract(d, 'days')
+  return prevGameDate.add(7, 'days').add(21, 'hours').add(30, 'minutes')
 }
 
+const isRegistrationOpen = () => (nextGameDate().diff(moment()) / 1000 / 60 / 60) < config.hoursToOpenRegistration
 
-const pages = {
-  main: async (_, cmd: PageCreationCommands) => {
-    cmd.add(actions.toTasks, 'Tasks')
-    return "Main Page"
-  },
-  tasks: async (context, cmd: PageCreationCommands) => {
-    const list = todoListByUser[context.user.id]
-    if (list) {
-      list.forEach(e => {
-        cmd
-          .add(actions.toTaskDetails, e.name, { id: e.id, name: e.name })
-      });
-    }
-    cmd
-      .lineBreak()
-      .add(actions.addNewTask, 'Add')
-    return "Taks"
-  },
-  taskDetails: async (context: IContext<{ id, name }>, cmd: PageCreationCommands) => {
-    cmd.add(actions.deleteTask, 'Delete', context.data.id)
-    cmd.add(actions.toTasks, 'Back')
-    return context.data.name
-  }
-}
+const bot = new TelegramBot('579168769:AAEgCimzCmLq8mMM8ocJlYHJd55LMX9hhMc', { webHook: true })
+bot.setWebHook('')
 
-const actions = {
-  toTaskDetails: async (context: IContext<{ id, name }>) => navigate(pages.taskDetails, context.data),
-  deleteTask: async (context: IContext<string>) => {
-    todoListByUser[context.user.id] = todoListByUser[context.user.id].filter(x => x.id != context.data)
-    return navigate(pages.tasks)
-  },
-  toTasks: async () => navigate(pages.tasks),
-  someAction: async (context: IContext<{ id, name }>) => {
-    console.log(context.data)
-    return {}
-  },
-  close: async () => close,
-  addNewTask: async () => promt(promts.newTask, 'Name?')
-}
-
-const promts = {
-  newTask: async (user: TelegramBot.User, data: any, reply: string) => {
-    let list: any[] = todoListByUser[user.id]
-    if (!list) {
-      list = []
-      todoListByUser[user.id] = list
-    }
-    list.push({ id: randomBytes(10).toString('base64'), name: reply })
-    return notify(`${reply} added`)
-  }
-}
-
-const encodeDecode = {
-  encode: (obj: any): string => Buffer.from(JSON.stringify(obj), 'utf-8').toString('base64'),
-  decode: (value: string): any => JSON.parse(Buffer.from(value, 'base64').toString('utf-8'))
-}
-
-const kvStore = KeyValueStore('testStore', encodeDecode)
-
-const { showPage } = menu(bot, pages, promts, actions, kvStore, encodeDecode)
-
-type Player = {}
 type Game = {
-  message: TelegramBot.Message
-  started: Date
-  whoIsComing: Player[]
+  date: string
+  whoIsComing: TelegramBot.User[]
 }
 
 type BotState = {
-  game?: Game
+  currentGame: Game
 }
 
-const BotState = async () => {
-  const s = await kvStore.get<BotState>("state")
-  if (s) return s
-  return {}
-}
+const getState = async () => {
+  const createGame = () => ({
+    currentGame: {
+      date: nextGameDate().format('DD.MM.YYYY HH:mm'),
+      whoIsComing: []
+    }
+  })
 
-const createGameOrUseExisting = (game?: Game): Game => {
-  if (game) {
-
+  let state = await kvStore.get<BotState>('state', false)
+  if (!state) {
+    state = {
+      key: 'state',
+      value: createGame()
+    }
   } else {
-    const now = new Date()
-    //now getDayOfWeek(now)
-    return {
-
+    if (moment(state.value.currentGame.date, 'DD.MM.YYYY HH:mm').diff(moment()) < 0) {
+      state.value = createGame()
     }
   }
+
+  await kvStore.update<BotState>('state', state.value, true)
+
+  return state
 }
 
-bot.on('message', async (msg: TelegramBot.Message) => {
-  if (msg.text = "/newgame") {
-    const s = await BotState()
+const updateState = async (update: (state: BotState) => BotState) => {
+  const s = await getState()
+  update(s.value)
+  await kvStore.update<BotState>('state', s.value, true)
+}
 
-    if (s.game) {
-      bot.deleteMessage(s.game.message.chat.id, s.game.message.message_id.toString())
-      if (getDayOfWeek(s.game.started) > 4) {
-
-      }
-      //if (s.game.started)
+const pages = {
+  game: async (_, cmd: PageCreationCommands) => {
+    const s = await getState()
+    const formatName = (user: TelegramBot.User) => {
+      if (user.first_name && user.last_name)
+        return `${user.first_name} ${user.last_name}`
+      if (user.first_name && user.username)
+        return `${user.first_name} (${user.username})`
+      return user.first_name
     }
-    const m = await showPage(msg.chat.id, msg.from, pages.main)
+    const players = s.value.currentGame.whoIsComing.map(p => formatName(p)).join('\n')
+    cmd.add(actions.toggle, '+1', { gameDate: s.value.currentGame.date, isGoing: true })
+    cmd.add(actions.toggle, '-1', { gameDate: s.value.currentGame.date, isGoing: false })
+    return `Запись на игру *${s.value.currentGame.date}*\n${players}`
+  },
+}
 
+const actions = {
+  toggle: async (context: IContext<{ gameDate: string, isGoing: boolean }>) => {
+    const s = await getState()
+    if (context.data.gameDate == s.value.currentGame.date) {
+      let answer = ''
+      await updateState(state => {
+        if (context.data.isGoing) {
+          if (state.currentGame.whoIsComing.filter(p => p.id == context.user.id).length == 0) {
+            state.currentGame.whoIsComing.push(context.user)
+            answer = 'Приходи!'
+          }
+          else answer = 'Ты уже в игре! Приходи!'
+        }
+        else {
+          state.currentGame.whoIsComing = state.currentGame.whoIsComing.filter(p => p.id != context.user.id)
+          answer = 'Обязательно приходи в следующий раз!'
+        }
+
+        return state
+      })
+
+      return updateAndNotify(answer)
+    }
+    else {
+      return notify('Эта игра уже прошла, круто поиграли!')
+    }
+  },
+}
+
+const promts = {}
+
+const { showPage } = menu(bot, pages, promts, actions, kvStore)
+
+bot.on('message', async (msg: TelegramBot.Message) => {
+  if (msg.text == '/game') {
+    if (isRegistrationOpen()) {
+      showPage(msg.chat.id, msg.from, pages.game)
+    }
+    else {
+      bot.sendMessage(msg.chat.id, `Следующая игра ${nextGameDate().format('DD.MM.YYYY HH:mm')}\nзапись начнется ${nextGameDate().subtract(config.hoursToOpenRegistration, 'hours').fromNow()}\n*[тут будет кнопка]*`,
+        { parse_mode: 'Markdown' })
+    }
   }
 })

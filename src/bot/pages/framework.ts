@@ -41,23 +41,25 @@ export type ButtonAction<T> = (context: IContext<T>) => Promise<IButtonResult>
 export const close: IButtonResult = { close: true }
 export const update: IButtonResult = { update: 'update' }
 export const notify = (notify: string): IButtonResult => ({ notify })
+export const updateAndNotify = (notify: string): IButtonResult => ({ update: 'update', notify })
 export const navigate = <T>(page: Page<T>, data?: T): IButtonResult => ({ navigate: page.name, data })
 export const promt = <T>(promt: Promt<T>, text: string, data?: T): IButtonResult => ({ promt: { Id: promt.name, data, text } })
 
 export type Page<T> = (context: IContext<T>, commands: PageCreationCommands) => Promise<string>
 export type Promt<T> = (user: User, data: T, response: string) => Promise<IButtonResult>
 export type KeyValueStorage = {
-  get: <T>(key: string) => Promise<T>,
-  set: <T>(key: string, value: T) => Promise<void>
+  get: <T>(key: string, remove: boolean) => Promise<{ key: string, value: T } | undefined>
+  insert: <T>(key: string, value: T) => Promise<boolean>
+  update: <T>(key: string, value: T, insertIfNotExists: boolean) => Promise<boolean>
 }
+
 export type ObjToStringEncoderDecoder = { encode: <T>(obj: T) => string, decode: <T>(str: string) => T }
 
 export const menu = (bot: TelegramBot,
   pages: IDictionary<Page<any>>,
   promts: IDictionary<Promt<any>>,
   actions: IDictionary<ButtonAction<any>>,
-  kvStorage: KeyValueStorage,
-  objToStringEncoderDecoder: ObjToStringEncoderDecoder) => {
+  kvStorage: KeyValueStorage) => {
 
   interface CallbackQueryData {
     pageId: string,
@@ -73,13 +75,14 @@ export const menu = (bot: TelegramBot,
     data: any
   }
 
-  const { encode, decode } = objToStringEncoderDecoder
+  const encode = <T>(obj: T): string => JSON.stringify(obj)
+  const decode = <T>(value: string): T => JSON.parse(value)
 
   const getPage = (pageId: string) => pages[pageId]
 
   bot.on('message', async (msg: Message) => {
     if (msg.reply_to_message) {
-      const promtData = await kvStorage.get<PromtData>(msg.reply_to_message.message_id.toString())
+      const promtData = (await kvStorage.get<PromtData>(msg.reply_to_message.message_id.toString(), false)).value
       if (promtData) {
         const result = await promts[promtData.promtId](msg.from, promtData.data, msg.text)
         result.update = result.update ? 'redraw' : undefined
@@ -92,26 +95,33 @@ export const menu = (bot: TelegramBot,
   })
 
   bot.on('callback_query', async (cq: CallbackQuery) => {
-    const data = await kvStorage.get<string>(cq.data)
+    const data = (await kvStorage.get<string>(cq.data, false)).value
     const d = decode<CallbackQueryData>(data)
     const context = { user: cq.from }
 
-    let answer = ''
+    let answers: Promise<string>[]
 
     const action = actions[d.actionId]
     if (action) {
       const r = await action({ user: cq.from, data: d.data })
       const buttonResult: IButtonResult[] = !(<[any]>r).length ? [<IButtonResult>r] : <IButtonResult[]>r
 
-      buttonResult.forEach(async result => {
-        answer = await handleButtonResult(result,
+      answers = buttonResult.map(async result =>
+        handleButtonResult(result,
           cq.from,
           cq.message.chat.id.toString(),
           cq.message.message_id.toString(),
           d.pageId)
-      })
+      )
     }
-    bot.answerCallbackQuery({ callback_query_id: cq.id, text: answer })
+
+    if (answers) {
+      const answer = (await Promise.all(answers))[0]
+      bot.answerCallbackQuery({ callback_query_id: cq.id, text: answer })
+    }
+    else {
+      bot.answerCallbackQuery({ callback_query_id: cq.id })
+    }
   })
 
   const handleButtonResult = async (result: IButtonResult, user: User, chatId: string, messageId: string, pageId: string) => {
@@ -129,13 +139,13 @@ export const menu = (bot: TelegramBot,
     }
     if (result.promt) {
       const r = await bot.sendMessage(chatId, result.promt.text, { reply_markup: { force_reply: true } }) as Message
-      await kvStorage.set<PromtData>(r.message_id.toString(), {
+      await kvStorage.update<PromtData>(r.message_id.toString(), {
         pageId,
         messageId,
         chatId,
         promtId: result.promt.Id,
         data: result.promt.data
-      })
+      }, true)
     }
     if (result.notify) {
       return result.notify
@@ -150,7 +160,7 @@ export const menu = (bot: TelegramBot,
     let current = []
     buttons.push(current)
     const add: AddButton = <F>(action: ButtonAction<F>, text: string, data?: F) => {
-      const callback = objToStringEncoderDecoder.encode(<CallbackQueryData>{ pageId, actionId: action.name, data })
+      const callback = encode(<CallbackQueryData>{ pageId, actionId: action.name, data })
       current.push({ text, callback })
       return commands
     }
@@ -170,7 +180,7 @@ export const menu = (bot: TelegramBot,
     const replyMarkup = {
       inline_keyboard: buttons.filter(b => b.length > 0).map(btns => btns.map(v => {
         const c = randomBytes(10).toString('base64')
-        kvStorage.set(c, v.callback)
+        kvStorage.update(c, v.callback, true)
         return {
           text: v.text,
           callback_data: c
@@ -187,7 +197,7 @@ export const menu = (bot: TelegramBot,
       chat_id: chatId,
       message_id: parseInt(messageId),
       reply_markup: replyMarkup,
-      parse_mode: notification.length > 0 ? 'Markdown' : undefined,
+      parse_mode: 'Markdown',
     }
 
     const finalText = notification.length > 0 ? `\`${notification}\`  ` + text : text
@@ -205,13 +215,13 @@ export const menu = (bot: TelegramBot,
 
     const options = {
       reply_markup: replyMarkup,
-      parse_mode: notification.length > 0 ? 'Markdown' : undefined,
+      parse_mode: 'Markdown',
     }
 
     const finalText = notification.length > 0 ? `\`${notification}\`  ` + text : text
 
     const msg = <Message>(await bot.sendMessage(chatId, finalText, options))
-    
+
     return msg
   }
 
