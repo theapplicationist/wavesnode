@@ -1,4 +1,4 @@
-import { KeyValueStore } from "./KeyValueStore";
+import { KeyValueStoreTyped } from "../generic/KeyValueStore";
 import { getLastBlockSignature } from "../wavesApi/getLastBlockSignature";
 import { getAddressesFromBlock, getLastBlock, getBlock, getNextBlock } from "../wavesApi/blocks";
 import { WavesNotifications } from "./WavesNotifications";

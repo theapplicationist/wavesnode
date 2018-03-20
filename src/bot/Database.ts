@@ -26,6 +26,7 @@ export interface IDatabase {
   addAsset: ($id, $alias, $decimals, $description, $issuer, $quantity, $reissuable, $timestamp) => Promise<boolean>
   updateUser: (user: IUser) => Promise<boolean>
   getUser: (id: string) => Promise<IUser>
+  getUsers: () => Promise<IUser[]>
   getAsset: (id: string) => Promise<IAsset>
   updateBalance: ($address: string, $assetId: string, $balance: string) => Promise<{ $old: IAssetBalance, $new: IAssetBalance }>
   getUserSubscriptions: ($usedId: string) => Promise<ISubscription[]>
@@ -222,7 +223,10 @@ export const Database = (): IDatabase => {
       }),
 
     getUser: (id): Promise<IUser> =>
-      dbGet(`SELECT * FROM users WHERE id = '${id}'`, x => x),
+      dbGet(`SELECT * FROM ${tables.users} WHERE id = '${id}'`, x => x),
+
+    getUsers: (): Promise<IUser[]> =>
+      dbSelect(`SELECT * FROM ${tables.users}`, x => x),
 
     updateBalance: ($address: string, $assetId: string, $balance: string): Promise<{ $old: IAssetBalance, $new: IAssetBalance }> =>
       dbInsertOrReplace<IAssetBalance>(tables.balances, ['address', 'assetId'], { $address, $assetId, $balance }, ($old, $new) => {

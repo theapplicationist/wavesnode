@@ -1,4 +1,4 @@
-import { KeyValueStore } from './KeyValueStore';
+import { KeyValueStoreTyped } from '../generic/KeyValueStore';
 import { validateAddress } from './WavesCrypto';
 const WavesAPI = require('waves-api');
 const Waves = WavesAPI.create(WavesAPI.MAINNET_CONFIG);

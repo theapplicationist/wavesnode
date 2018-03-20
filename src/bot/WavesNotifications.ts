@@ -5,7 +5,7 @@ import { ObservableNodeConnection } from '../observableNodeConnection';
 import { MessageCode } from '../schema/messages';
 import { Observable, Subscription, Subscriber, Subject, ReplaySubject } from 'rxjs/Rx';
 import { IDatabase } from './Database';
-import { KeyValueStoreTyped } from "./KeyValueStore";
+import { KeyValueStoreTyped } from "../generic/KeyValueStore";
 import { getLastBlockSignature } from "../wavesApi/getLastBlockSignature";
 import { getAddressesFromBlock, getLastBlock, getBlock, getNextBlock, getLastSolidBlock, getNextSolidBlock } from "../wavesApi/blocks";
 

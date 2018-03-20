@@ -12,10 +12,11 @@ import { getBalance, wavesAsset } from '../wavesApi/getBalance';
 
 
 const db = Database()
-const bot = new TelegramBot('537693032:AAGCOljwslLYSGjTpgaD6GoeGwUYnvyRVak', { polling: true });
+const bot = new TelegramBot('579168769:AAEgCimzCmLq8mMM8ocJlYHJd55LMX9hhMc', { polling: true });
 const wn = WavesNotifications(db)
 const commands = {
   help: '/help',
+  broadcast: '/broadcast',
   language: '/language',
   wallets: '/wallets'
 }
@@ -191,139 +192,165 @@ wn.balances.subscribe(async walletBalances => {
   }
 })
 
-bot.on('message', async (msg: TelegramBot.Message) => {
-  const from = msg.from
-  await db.addUser(from.id, from.is_bot == true ? 1 : 0, from.first_name, from.last_name, from.username, from.language_code)
-  const user = await db.getUser(from.id.toString())
+async function main() {
+  const botUser = <TelegramBot.User>await bot.getMe()
 
-  if (msg.reply_to_message && msg.reply_to_message.from.username == 'wavesbalancebot' && userAndAddressForRename[user.id]) {
-    const address = userAndAddressForRename[user.id].address
-    const menuMessageId = userAndAddressForRename[user.id].menuMessageId
-    const questionMessageId = userAndAddressForRename[user.id].questionMessageId
-    delete userAndAddressForRename[user.id]
-    const subscriptions = await db.getUserSubscriptions(user.id)
-    const s = subscriptions.filter(s => s.address == address)
-    if (s.length == 1) {
-      s[0].alias = msg.text
-      await db.updateUserSubscription(s[0])
-      const keyboard = await walletsKeyboardForUser(user.id)
-      bot.editMessageReplyMarkup({ inline_keyboard: keyboard }, { chat_id: user.id, message_id: menuMessageId })
-      bot.sendMessage(user.id, Text[user.language_code].wallet_renamed(s[0].address, s[0].alias))
-      bot.deleteMessage(user.id, questionMessageId)
-    }
-    return
-  }
+  bot.on('message', async (msg: TelegramBot.Message) => {
+    const from = msg.from
+    await db.addUser(from.id, from.is_bot == true ? 1 : 0, from.first_name, from.last_name, from.username, from.language_code)
+    const user = await db.getUser(from.id.toString())
 
-  if (msg.text.startsWith(commands.help) || msg.text.startsWith('/start')) {
-    bot.sendMessage(from.id, Text[user.language_code].help)
-    return
-  }
-  if (msg.text.startsWith(commands.language)) {
-    const result = await showDialog(user.id, Text[user.language_code].language_change_question,
-      [Text[user.language_code].button_en, 'en'],
-      [Text[user.language_code].button_ru, 'ru'],
-    )
 
-    if (result.code) {
-      user.language_code = result.code
-      await db.updateUser(user)
-      const m = Text[user.language_code].language_changed(user.language_code)
-      bot.sendMessage(user.id, m)
-      result.notify(m)
-    }
-
-    return
-  }
-  if (msg.text.startsWith(commands.wallets)) {
-
-    const keyboard = await walletsKeyboardForUser(user.id)
-    if (keyboard.length > 0) {
-      const message = await bot.sendMessage(user.id, Text[user.language_code].wallets_menu_header, { reply_markup: { inline_keyboard: keyboard } })
-    }
-    else {
-      bot.sendMessage(user.id, Text[user.language_code].wallets_menu_no_wallets)
-    }
-    return
-  }
-  if (msg.text.startsWith('3P')) {
-    if (!validateAddress(msg.text)) {
-      bot.sendMessage(user.id, Text[user.language_code].address_not_valid)
+    if (msg.reply_to_message && msg.reply_to_message.from.id == botUser.id && msg.reply_to_message.text == 'What do you want to post?') {
+      bot.sendMessage(msg.chat.id, msg.text, {
+        parse_mode: 'Markdown', reply_markup: {
+          inline_keyboard: [[{
+            text: 'Broadcast', callback_data: 'broadcast'
+          }]]
+        }
+      })
       return
     }
-    const address = msg.text
-    db.addWallet(address, user.id)
-    const isNew = await db.addSubscription(address, user.id)
-    if (isNew) {
-      wn.addWallet(address)
-      bot.sendMessage(user.id, Text[user.language_code].wallet_added(address))
-    } else {
-      const result = await showDialog(user.id,
-        Text[user.language_code].remove_wallet_question(address),
-        [Text[user.language_code].button_yes, 'yes'],
-        [Text[user.language_code].button_no, 'no']
+    if (msg.reply_to_message && msg.reply_to_message.from.id == botUser.id && userAndAddressForRename[user.id]) {
+      const address = userAndAddressForRename[user.id].address
+      const menuMessageId = userAndAddressForRename[user.id].menuMessageId
+      const questionMessageId = userAndAddressForRename[user.id].questionMessageId
+      delete userAndAddressForRename[user.id]
+      const subscriptions = await db.getUserSubscriptions(user.id)
+      const s = subscriptions.filter(s => s.address == address)
+      if (s.length == 1) {
+        s[0].alias = msg.text
+        await db.updateUserSubscription(s[0])
+        const keyboard = await walletsKeyboardForUser(user.id)
+        bot.editMessageReplyMarkup({ inline_keyboard: keyboard }, { chat_id: user.id, message_id: menuMessageId })
+        bot.sendMessage(user.id, Text[user.language_code].wallet_renamed(s[0].address, s[0].alias))
+        bot.deleteMessage(user.id, questionMessageId)
+      }
+      return
+    }
+
+    if (msg.text == commands.broadcast) {
+      bot.sendMessage(msg.chat.id, 'What do you want to post?', { reply_markup: { force_reply: true } })
+    }
+    if (msg.text.startsWith(commands.help) || msg.text.startsWith('/start')) {
+      bot.sendMessage(from.id, Text[user.language_code].help)
+      return
+    }
+    if (msg.text.startsWith(commands.language)) {
+      const result = await showDialog(user.id, Text[user.language_code].language_change_question,
+        [Text[user.language_code].button_en, 'en'],
+        [Text[user.language_code].button_ru, 'ru'],
       )
 
-      switch (result.code) {
-        case 'yes':
-          const isRemoved = await db.removeSubscription(address, user.id)
-          if (isRemoved)
-            bot.sendMessage(user.id, Text[user.language_code].wallet_removed)
-          result.notify(Text[user.language_code].wallet_removed)
-          break;
-        case 'no':
-          bot.sendMessage(user.id, Text[user.language_code].wallet_not_removed)
-          result.notify(Text[user.language_code].wallet_not_removed)
-          break;
-        default:
-          break;
+      if (result.code) {
+        user.language_code = result.code
+        await db.updateUser(user)
+        const m = Text[user.language_code].language_changed(user.language_code)
+        bot.sendMessage(user.id, m)
+        result.notify(m)
+      }
+
+      return
+    }
+    if (msg.text.startsWith(commands.wallets)) {
+
+      const keyboard = await walletsKeyboardForUser(user.id)
+      if (keyboard.length > 0) {
+        const message = await bot.sendMessage(user.id, Text[user.language_code].wallets_menu_header, { reply_markup: { inline_keyboard: keyboard } })
+      }
+      else {
+        bot.sendMessage(user.id, Text[user.language_code].wallets_menu_no_wallets)
+      }
+      return
+    }
+    if (msg.text.startsWith('3P')) {
+      if (!validateAddress(msg.text)) {
+        bot.sendMessage(user.id, Text[user.language_code].address_not_valid)
+        return
+      }
+      const address = msg.text
+      db.addWallet(address, user.id)
+      const isNew = await db.addSubscription(address, user.id)
+      if (isNew) {
+        wn.addWallet(address)
+        bot.sendMessage(user.id, Text[user.language_code].wallet_added(address))
+      } else {
+        const result = await showDialog(user.id,
+          Text[user.language_code].remove_wallet_question(address),
+          [Text[user.language_code].button_yes, 'yes'],
+          [Text[user.language_code].button_no, 'no']
+        )
+
+        switch (result.code) {
+          case 'yes':
+            const isRemoved = await db.removeSubscription(address, user.id)
+            if (isRemoved)
+              bot.sendMessage(user.id, Text[user.language_code].wallet_removed)
+            result.notify(Text[user.language_code].wallet_removed)
+            break;
+          case 'no':
+            bot.sendMessage(user.id, Text[user.language_code].wallet_not_removed)
+            result.notify(Text[user.language_code].wallet_not_removed)
+            break;
+          default:
+            break;
+        }
       }
     }
-  }
-  else {
-    bot.sendMessage(user.id, Text[user.language_code].wrong_wallet(commandList()))
-  }
-})
+    else {
+      bot.sendMessage(user.id, Text[user.language_code].wrong_wallet(commandList()))
+    }
+  })
 
-bot.on('callback_query', async (callback: TelegramBot.CallbackQuery) => {
-  callbacks.check(callback, () => db.getUser(callback.from.id.toString()),
-    {
-      remove: async (user, address) => {
-        await db.removeSubscription(address, user.id)
-        bot.answerCallbackQuery({ callback_query_id: callback.id, text: Text[user.language_code].wallet_removed })
-        const keyboard = await walletsKeyboardForUser(user.id)
-        bot.editMessageReplyMarkup({ inline_keyboard: keyboard }, { chat_id: user.id, message_id: callback.message.message_id })
-      },
-      toggle: async (user, address) => {
-        const subscriptions = await db.getUserSubscriptions(user.id)
-        const s = subscriptions.filter(s => s.address == address)
-        if (s.length == 1) {
-          if (!s[0].disabled || s[0].disabled == 0) {
-            s[0].disabled = 1
-          }
-          else {
-            s[0].disabled = 0
-          }
-          await db.updateUserSubscription(s[0])
-          if (s[0].disabled == 0) {
-            wn.addWallet(s[0].address)
-          }
+  bot.on('callback_query', async (callback: TelegramBot.CallbackQuery) => {
+    if (callback.data == 'broadcast') {
+      const users = await db.getUsers()
+      users.forEach(u => {
+        bot.sendMessage(u.id, callback.message.text, { parse_mode: 'Markdown' })
+      })
+    }
+    callbacks.check(callback, () => db.getUser(callback.from.id.toString()),
+      {
+        remove: async (user, address) => {
+          await db.removeSubscription(address, user.id)
+          bot.answerCallbackQuery({ callback_query_id: callback.id, text: Text[user.language_code].wallet_removed })
           const keyboard = await walletsKeyboardForUser(user.id)
-          bot.answerCallbackQuery({ callback_query_id: callback.id, text: s[0].disabled ? Text[user.language_code].wallet_disabled : Text[user.language_code].wallet_enabled })
           bot.editMessageReplyMarkup({ inline_keyboard: keyboard }, { chat_id: user.id, message_id: callback.message.message_id })
-        }
-      },
-      info: async (user, address) => {
-        const balance = await getBalance(address)
-        bot.sendMessage(user.id, formatAsset(wavesAsset, balance.balances[wavesAsset.id]))
-        bot.answerCallbackQuery({ callback_query_id: callback.id })
-      },
-      edit: async (user, address) => {
-        const questionMessage = await bot.sendMessage(user.id, Text[user.language_code].wallet_rename_description, { reply_markup: { force_reply: true } })
-        userAndAddressForRename[user.id] = {
-          address, menuMessageId: callback.message.message_id, questionMessageId: (<TelegramBot.Message>questionMessage).message_id
-        }
+        },
+        toggle: async (user, address) => {
+          const subscriptions = await db.getUserSubscriptions(user.id)
+          const s = subscriptions.filter(s => s.address == address)
+          if (s.length == 1) {
+            if (!s[0].disabled || s[0].disabled == 0) {
+              s[0].disabled = 1
+            }
+            else {
+              s[0].disabled = 0
+            }
+            await db.updateUserSubscription(s[0])
+            if (s[0].disabled == 0) {
+              wn.addWallet(s[0].address)
+            }
+            const keyboard = await walletsKeyboardForUser(user.id)
+            bot.answerCallbackQuery({ callback_query_id: callback.id, text: s[0].disabled ? Text[user.language_code].wallet_disabled : Text[user.language_code].wallet_enabled })
+            bot.editMessageReplyMarkup({ inline_keyboard: keyboard }, { chat_id: user.id, message_id: callback.message.message_id })
+          }
+        },
+        info: async (user, address) => {
+          const balance = await getBalance(address)
+          bot.sendMessage(user.id, formatAsset(wavesAsset, balance.balances[wavesAsset.id]))
+          bot.answerCallbackQuery({ callback_query_id: callback.id })
+        },
+        edit: async (user, address) => {
+          const questionMessage = await bot.sendMessage(user.id, Text[user.language_code].wallet_rename_description, { reply_markup: { force_reply: true } })
+          userAndAddressForRename[user.id] = {
+            address, menuMessageId: callback.message.message_id, questionMessageId: (<TelegramBot.Message>questionMessage).message_id
+          }
 
-        bot.answerCallbackQuery({ callback_query_id: callback.id })
-      },
-    })
-})
+          bot.answerCallbackQuery({ callback_query_id: callback.id })
+        },
+      })
+  })
+}
+
+main()
