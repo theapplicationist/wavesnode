@@ -1,22 +1,66 @@
 import * as TelegramBot from 'node-telegram-bot-api'
-import { Database } from './Database'
+import { Database, IUser } from './Database'
 import { Text, Icons } from './Text'
 import { WavesNotifications } from './WavesNotifications'
 import * as uuid from 'uuid/v4'
 import { validateAddress } from './WavesCrypto';
-import { Secret } from './Secret';
 import { IDictionary } from '../generic/IDictionary';
 import { IAsset } from '../wavesApi/IAsset';
 import { formatAsset, formatAssetBalance } from '../wavesApi/formatAsset';
 import { getBalance, wavesAsset } from '../wavesApi/getBalance';
+import { menu, IContext, PageCreationCommands, update, navigate, close, promt } from './pages/framework';
+import { KeyValueStore } from '../generic/KeyValueStore';
 
 
 const db = Database()
-const bot = new TelegramBot('579168769:AAEgCimzCmLq8mMM8ocJlYHJd55LMX9hhMc', { polling: true });
+const bot = new TelegramBot('579168769:AAEgCimzCmLq8mMM8ocJlYHJd55LMX9hhMc', { polling: true })
+const kvStore = KeyValueStore('kvstore')
+const promts = {
+  askWallet: async (context: IContext<any>, response: string) => {
+    if (validateAddress(response)) {
+      return promt(promts.askEmail, 'In order to participate give us your email?')
+    }
+    return promt(promts.askWallet, 'This is not a valid one, try again...')
+  },
+  askEmail: async (context: IContext<any>, response: string) => {
+    //email confirmation
+    return update
+  }
+}
+const pages = {
+  mainMenu: async (context: IContext<any>, commands: PageCreationCommands) => {
+    commands.add(actions.navigateWallets, 'Wallets')
+    commands.add(actions.navigateBirthday, 'Our Birthday!')
+    return "Menu"
+  },
+  birthday: async (context: IContext<any>, commands: PageCreationCommands) => {
+    commands.add(actions.birthdayParticipate, 'Yes!')
+    return "Do you want to participate? Blah Blah ..."
+  }
+}
+const actions = {
+  navigateWallets: async (context: IContext<any>) => {
+    const user = await db.getUser(context.user.id.toString())
+    commandHandlers.wallets(user)
+    return close
+  },
+  navigateBirthday: async (context: IContext<any>) => {
+    return navigate(pages.birthday)
+  },
+  birthdayParticipate: async (context: IContext<any>) => {
+    return promt(promts.askWallet, 'What is your wallet?')
+  },
+}
+const { showPage } = menu(bot, pages, promts, actions, kvStore)
 const wn = WavesNotifications(db)
+const adminToken = ''
+const adminCommands = {
+  broadcast: '/broadcast',
+}
+
 const commands = {
   help: '/help',
-  broadcast: '/broadcast',
+  menu: '/menu',
   language: '/language',
   wallets: '/wallets'
 }
@@ -25,7 +69,23 @@ const subsctiptionCommands = {
   togge: 'toggle',
   remove: 'remove',
   edit: 'edit',
-  info: 'info',
+  info: 'info'
+}
+
+const commandHandlers = {
+  wallets: async (u: TelegramBot.User) => {
+    const user = await db.getUser(u.id.toString())
+    const keyboard = await walletsKeyboardForUser(user.id)
+    if (keyboard.length > 0) {
+      const message = await bot.sendMessage(user.id, Text[user.language_code].wallets_menu_header, { reply_markup: { inline_keyboard: keyboard } })
+    }
+    else {
+      bot.sendMessage(user.id, Text[user.language_code].wallets_menu_no_wallets)
+    }
+  },
+  menu: async (user: TelegramBot.User) => {
+    showPage(user.id, user, pages.mainMenu)
+  }
 }
 
 const userAndAddressForRename = {}
@@ -228,8 +288,10 @@ async function main() {
       }
       return
     }
-
-    if (msg.text == commands.broadcast) {
+    if (msg.reply_to_message) {
+      return
+    }
+    if (msg.text == adminCommands.broadcast) {
       bot.sendMessage(msg.chat.id, 'What do you want to post?', { reply_markup: { force_reply: true } })
     }
     if (msg.text.startsWith(commands.help) || msg.text.startsWith('/start')) {
@@ -252,17 +314,15 @@ async function main() {
 
       return
     }
-    if (msg.text.startsWith(commands.wallets)) {
-
-      const keyboard = await walletsKeyboardForUser(user.id)
-      if (keyboard.length > 0) {
-        const message = await bot.sendMessage(user.id, Text[user.language_code].wallets_menu_header, { reply_markup: { inline_keyboard: keyboard } })
+    let handled = false
+    Object.keys(commandHandlers).forEach(command => {
+      if (msg.text == `/${command}`) {
+        commandHandlers[command](msg.from)
+        handled = true
+        return
       }
-      else {
-        bot.sendMessage(user.id, Text[user.language_code].wallets_menu_no_wallets)
-      }
-      return
-    }
+    })
+    if (handled) return
     if (msg.text.startsWith('3P')) {
       if (!validateAddress(msg.text)) {
         bot.sendMessage(user.id, Text[user.language_code].address_not_valid)

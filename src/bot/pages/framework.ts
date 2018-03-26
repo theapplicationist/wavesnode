@@ -46,7 +46,7 @@ export const navigate = <T>(page: Page<T>, data?: T): IButtonResult => ({ naviga
 export const promt = <T>(promt: Promt<T>, text: string, data?: T): IButtonResult => ({ promt: { Id: promt.name, data, text } })
 
 export type Page<T> = (context: IContext<T>, commands: PageCreationCommands) => Promise<string>
-export type Promt<T> = (user: User, data: T, response: string) => Promise<IButtonResult>
+export type Promt<T> = (context: IContext<T>, response: string) => Promise<IButtonResult>
 export type KeyValueStorage = {
   get: <T>(key: string, remove: boolean) => Promise<{ key: string, value: T } | undefined>
   insert: <T>(key: string, value: T) => Promise<boolean>
@@ -84,7 +84,7 @@ export const menu = (bot: TelegramBot,
     if (msg.reply_to_message) {
       const promtData = (await kvStorage.get<PromtData>(msg.reply_to_message.message_id.toString(), false)).value
       if (promtData) {
-        const result = await promts[promtData.promtId](msg.from, promtData.data, msg.text)
+        const result = await promts[promtData.promtId]({ user: msg.from, data: promtData.data }, msg.text)
         result.update = result.update ? 'redraw' : undefined
         const answer = await handleButtonResult(result, msg.from, promtData.chatId, promtData.messageId, promtData.pageId)
         if (answer) {

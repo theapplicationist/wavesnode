@@ -8,7 +8,8 @@ export interface IUser {
   first_name,
   last_name,
   username,
-  language_code
+  language_code,
+  email?: string
 }
 
 export interface IAssetBalance {
@@ -219,7 +220,7 @@ export const Database = (): IDatabase => {
 
     updateUser: (user: IUser): Promise<boolean> =>
       dbUpdate(tables.users, ['id'], user, () => {
-        console.log(`USER UPDATED -> ${user.id}, language_code: ${user.language_code}`)
+        console.log(`USER UPDATED -> ${user.id}, language_code: ${user.language_code}, email: ${user.email}`)
       }),
 
     getUser: (id): Promise<IUser> =>

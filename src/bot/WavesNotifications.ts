@@ -18,12 +18,13 @@ export const WavesNotifications = (db: IDatabase): IWalletNotifications => {
 
   const storage = KeyValueStoreTyped<string>('storage')
   const accountsToUpdate = KeyValueStoreTyped<string>('accountsToUpdate')
-
+  const lastSignatureKey = 'lastSignature'
+  const backupSignatureKey = 'backupSignature'
   let started = false
-
+  const processedSignatures = []
   async function discoverAccounts() {
     while (true) {
-      let lastSignature = await storage.get('lastSignature')
+      let lastSignature = await storage.get(lastSignatureKey)
       let block
       if (!lastSignature) {
         console.log('Clean run, retrieving last block')
@@ -53,9 +54,12 @@ export const WavesNotifications = (db: IDatabase): IWalletNotifications => {
         if (count > 0)
           update()
 
-        await storage.update('lastSignature', block.signature)
+        await storage.update(lastSignatureKey, block.signature)
         console.log(`Last signature is now: ${block.signature}`)
-
+        processedSignatures.push(block.signature)
+        if(processedSignatures.length % 10 == 0) {
+          await storage.update(backupSignatureKey, )
+        }
       } catch (ex) {
         console.log(ex)
         break

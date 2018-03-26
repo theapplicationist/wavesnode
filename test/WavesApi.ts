@@ -17,6 +17,7 @@ suite('WavesApi', () => {
 
   test('should format asset', () => {
     assert.equal(formatAsset(wavesAsset, '10'), '0.00000010 WAVES')
+    assert.equal(formatAsset(wavesAsset, '-10'), '-0.00000010 WAVES')
     assert.equal(formatAsset(wavesAsset, '260496971786'), '2604.96971786 WAVES')
   })
 })

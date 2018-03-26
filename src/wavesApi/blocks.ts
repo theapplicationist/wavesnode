@@ -14,12 +14,14 @@ export const getLastBlock = async (): Promise<any> => {
 export const getLastSolidBlock = async (): Promise<any> => {
   try {
     const data = await axios.get(`https://nodes.wavesnodes.com/blocks/headers/last`)
-    if (data.status != 200)
+    if (data.status != 200) {
+      console.log("failed")
       return undefined
-
+    }
     return await getBlock(data.data.reference)
   }
-  catch {
+  catch (ex) {
+    console.log(ex)
     return undefined
   }
 }
@@ -39,7 +41,8 @@ export const getNextSolidBlock = async (signature: string): Promise<any> => {
 
     return undefined
   }
-  catch {
+  catch (ex) {
+    console.log(ex)
     return undefined
   }
 }
@@ -47,11 +50,14 @@ export const getNextSolidBlock = async (signature: string): Promise<any> => {
 export const getBlock = async (signature: string): Promise<any> => {
   try {
     const data = await axios.get(`https://nodes.wavesnodes.com/blocks/signature/${signature}`)
-    if (data.status != 200 || data.data.status == 'error')
+    if (data.status != 200 || data.data.status == 'error') {
+      console.log(data)
       return undefined
+    }
 
     return data.data
   } catch (error) {
+    console.log(error)
     return undefined
   }
 }
@@ -59,11 +65,14 @@ export const getBlock = async (signature: string): Promise<any> => {
 export const getNextBlock = async (signature: string): Promise<any> => {
   try {
     const data = await axios.get(`https://nodes.wavesnodes.com/blocks/child/${signature}`)
-    if (data.status != 200 || data.data.status == 'error')
+    if (data.status != 200 || data.data.status == 'error') {
+      console.log(data)
       return undefined
+    }
 
     return data.data
   } catch (error) {
+    console.log(error)
     return undefined
   }
 }
@@ -71,11 +80,10 @@ export const getNextBlock = async (signature: string): Promise<any> => {
 export const getAddressesFromBlock = async (block): Promise<string[]> => {
   const result = linq.from(JSPath.apply('..sender | ..recipient | ..senderPublicKey', block)).distinct()
     .select((x: string) => {
-      if (!x.startsWith('3P')){
+      if (!x.startsWith('3P')) {
         try {
-         return Waves.tools.getAddressFromPublicKey(x)
+          return Waves.tools.getAddressFromPublicKey(x)
         } catch (error) {
-          
         }
       }
     }).where(x => x).distinct().toArray()
