@@ -8,7 +8,46 @@ export const Icons = {
   refresh: 'ℹ️'
 }
 
-export const Text = {
+interface IText {
+  start: string
+  help: string
+  wallet_added: (address) => string,
+  balance_changed: (address, balance) => string
+  asset_balance_changed: (address, asset, balance) => string
+  wrong_wallet: (commands) => string
+  remove_wallet_question: (adderss) => string
+  button_yes: string
+  button_no: string
+  button_ru: string
+  button_en: string
+  button_wallets: string
+  button_birthday: string
+  button_birthday_participate: string
+  menu_page_title: string
+  birthday_page_title: string
+  ask_wallet_promt: string
+  ask_wallet_promt_invalid_input: string
+  ask_email_promt: string
+  ask_email_promt_invalid_input: string
+  ask_email_confirmation_promt: string
+  aks_email_confirmation_promt_invalid_input: string
+  email_confirmation_subject: string
+  email_confirmation_body: (code) => string
+  language_change_question: string
+  language_changed: (code) => string
+  wallet_removed: string
+  wallet_disabled: string
+  wallet_enabled: string
+  wallet_not_removed: string
+  wallet_rename_description: string
+  wallets_menu_header: string
+  wallets_menu_no_wallets: string
+  wallet_renamed: (address, name) => string
+  address_not_valid: string
+  and_more: (amount) => string
+}
+
+export const Text: IDictionary<IText> = {
   ru: {
     start: 'Привет! Я могу уведомлять тебя об изменениях баланса по кошелькам. Пришли мне адрес waves кошелька и ты начнешь получать уведомления об изменениях баланса.',
     help: 'Я могу уведомлять тебя об изменениях баланса по кошелькам. Пришли мне адрес waves кошелька и ты начнешь получать уведомления об изменениях баланса.',
@@ -21,6 +60,19 @@ export const Text = {
     button_no: 'Нет',
     button_ru: 'Ru',
     button_en: 'En',
+    button_wallets: 'Кошельки',
+    button_birthday: 'Waves 2 года!',
+    button_birthday_participate: 'Да, конечно!',
+    menu_page_title: 'Меню',
+    birthday_page_title: 'Waves празднует свой второй день рождения и мы подготовили что-то особенное...',
+    ask_wallet_promt: 'Дай адрес своего кошелька?',
+    ask_wallet_promt_invalid_input: 'Адрес не похож на waves, попробуй еще:',
+    ask_email_promt: 'Чтобы принять участие нам какже нужен твой email?',
+    ask_email_promt_invalid_input: 'Неверный email, попробуй снова:',
+    ask_email_confirmation_promt: 'Введи код, который мы выслали тебе, чтобы подтвердить почту:',
+    aks_email_confirmation_promt_invalid_input: 'Неверный код, попробуй еще раз:',
+    email_confirmation_subject: 'Код подтверждения wavesbot',
+    email_confirmation_body: (code) => `Твой код: ${code}`,
     language_change_question: 'Меняем язык?',
     language_changed: (code) => `Язык изменен: ${code}`,
     wallet_removed: 'Кошелек удален.',
@@ -46,6 +98,19 @@ export const Text = {
     button_no: 'No',
     button_ru: 'Ru',
     button_en: 'En',
+    button_wallets: 'Wallets',
+    button_birthday: 'Waves 2 years event!',
+    button_birthday_participate: 'Yes, sure!',
+    menu_page_title: 'Menu',
+    birthday_page_title: 'Waves will be celebrating it\'s second birthday soon, and we prepared something special for you...',
+    ask_wallet_promt: 'What is your wallet?',
+    ask_wallet_promt_invalid_input: 'This is not valid waves address, try again...',
+    ask_email_promt: 'In order to participate give us your email please?',
+    ask_email_promt_invalid_input: 'Invalid email, try again:',
+    ask_email_confirmation_promt: 'Confirm your email, enter the code we\'ve sent you:',
+    aks_email_confirmation_promt_invalid_input: 'Invalid code, try again:',
+    email_confirmation_subject: 'Confirmation code',
+    email_confirmation_body: (code) => `Your code is: ${code}`,
     language_change_question: 'Choose language:',
     language_changed: (code) => `Language changed: ${code}`,
     wallet_removed: 'Wallet removed.',

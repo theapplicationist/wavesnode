@@ -3,17 +3,25 @@ import { Database, IUser } from './Database'
 import { Text, Icons } from './Text'
 import { WavesNotifications } from './WavesNotifications'
 import * as uuid from 'uuid/v4'
-import { validateAddress } from './WavesCrypto';
-import { IDictionary } from '../generic/IDictionary';
-import { IAsset } from '../wavesApi/IAsset';
-import { formatAsset, formatAssetBalance } from '../wavesApi/formatAsset';
-import { getBalance, wavesAsset } from '../wavesApi/getBalance';
-import { menu, IContext, PageCreationCommands, update, navigate, close, promt } from './pages/framework';
-import { KeyValueStore } from '../generic/KeyValueStore';
+import { validateAddress } from './WavesCrypto'
+import { IDictionary } from '../generic/IDictionary'
+import { IAsset } from '../wavesApi/IAsset'
+import { formatAsset, formatAssetBalance } from '../wavesApi/formatAsset'
+import { getBalance, wavesAsset } from '../wavesApi/getBalance'
+import { menu, IContext, PageCreationCommands, update, navigate, close, promt } from './pages/framework'
+import { KeyValueStore } from '../generic/KeyValueStore'
+import { sendMail } from './mail/sendMail'
 
 function validateEmail(email) {
   var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
   return re.test(String(email).toLowerCase())
+}
+
+async function text(userId: string | number) {
+  const user = await db.getUser(userId.toString())
+  if (user.language_code == 'ru')
+    return Text.ru
+  return Text.en
 }
 
 const db = Database()
@@ -23,37 +31,48 @@ const confirmationCodes = KeyValueStore('confirmationCodes')
 const birthdayParticipants = KeyValueStore('birthdayParticipants')
 const promts = {
   askWallet: async (context: IContext<any>, response: string) => {
+    const txt = await text(context.user.id)
+    
     if (validateAddress(response)) {
-      return promt(promts.askEmail, 'In order to participate give us your email?')
+      return promt(promts.askEmail, txt.ask_email_promt)
     }
-    return promt(promts.askWallet, 'This is not a valid one, try again...')
+    return promt(promts.askWallet, txt.ask_wallet_promt_invalid_input)
   },
   askEmail: async (context: IContext<any>, response: string) => {
+    const txt = await text(context.user.id)
+
     const email = response.trim()
     if (validateEmail(email)) {
-      confirmationCodes.update(context.user.id.toString(), '123456')
-      //email confirmation
-      return promt(promts.aksEmailConfirmation, 'Confirm your email, enter the code please:', email)
+      const code = '123456'
+      confirmationCodes.update(context.user.id.toString(), code)
+      sendMail(email,  txt.email_confirmation_subject, txt.email_confirmation_body(code))
+      return promt(promts.aksEmailConfirmation, txt.ask_email_confirmation_promt, email)
     }
-    return promt(promts.askEmail, 'Invalid email, try again:')
+    return promt(promts.askEmail, txt.ask_email_promt_invalid_input)
   },
   aksEmailConfirmation: async (context: IContext<string>, response: string) => {
+    const txt = await text(context.user.id)
     const code = await confirmationCodes.get(context.user.id.toString())
     if (code.value == response.trim()) {
+      const user = await db.getUser(context.user.id.toString())
+      user.email = context.data
+      await db.updateUser(user)
       return update
     }
-    return promt(promts.aksEmailConfirmation, 'Invalid code, try again:', context.data)
+    return promt(promts.aksEmailConfirmation, txt.aks_email_confirmation_promt_invalid_input, context.data)
   }
 }
 const pages = {
-  mainMenu: async (context: IContext<any>, commands: PageCreationCommands) => {
-    commands.add(actions.navigateWallets, 'Wallets')
-    commands.add(actions.navigateBirthday, 'Our Birthday!')
-    return "Menu"
+  menu: async (context: IContext<any>, commands: PageCreationCommands) => {
+    const txt = await text(context.user.id)
+    commands.add(actions.navigateWallets, txt.button_wallets)
+    commands.add(actions.navigateBirthday, txt.button_birthday)
+    return txt.menu_page_title
   },
   birthday: async (context: IContext<any>, commands: PageCreationCommands) => {
-    commands.add(actions.birthdayParticipate, 'Yes!')
-    return "Do you want to participate? Blah Blah ..."
+    const txt = await text(context.user.id)
+    commands.add(actions.birthdayParticipate, txt.button_birthday_participate)
+    return txt.birthday_page_title
   },
 }
 const actions = {
@@ -66,7 +85,8 @@ const actions = {
     return navigate(pages.birthday)
   },
   birthdayParticipate: async (context: IContext<any>) => {
-    return promt(promts.askWallet, 'What is your wallet?')
+    const txt = await text(context.user.id)
+    return promt(promts.askWallet, txt.ask_wallet_promt)
   },
 }
 const { showPage } = menu(bot, pages, promts, actions, kvStore)
@@ -102,7 +122,7 @@ const commandHandlers = {
     }
   },
   menu: async (user: TelegramBot.User) => {
-    showPage(user.id, user, pages.mainMenu)
+    showPage(user.id, user, pages.menu)
   }
 }
 

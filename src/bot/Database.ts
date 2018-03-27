@@ -79,7 +79,9 @@ export const Database = (): IDatabase => {
     first_name TEXT,
     last_name TEXT,
     username TEXT,
-    language_code TEXT)`)
+    language_code TEXT,
+    language_code_original TEXT,
+    email TEXT)`)
   })
 
   const dbSelect = <T>(sql: string, projection: (any) => T): Promise<T[]> =>
@@ -210,7 +212,15 @@ export const Database = (): IDatabase => {
       }),
 
     addUser: ($id, $is_bot, $first_name, $last_name, $username, $language_code): Promise<boolean> => {
-      const params = { $id, $is_bot, $first_name, $last_name, $username, $language_code }
+      const params = {
+        $id,
+        $is_bot,
+        $first_name,
+        $last_name,
+        $username,
+        $language_code,
+        $language_code_original: $language_code
+      }
       params.$language_code = new RegExp('ru', 'i').test(params.$language_code) ? 'ru' : 'en'
 
       return dbInsert(tables.users, params, () => {
