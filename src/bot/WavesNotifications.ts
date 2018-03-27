@@ -16,7 +16,7 @@ export interface IWalletNotifications {
 
 export const WavesNotifications = (db: IDatabase): IWalletNotifications => {
 
-  const storage = KeyValueStoreTyped<string>('storage')
+  const storage = KeyValueStoreTyped<string>('blockhainsync')
   const accountsToUpdate = KeyValueStoreTyped<string>('accountsToUpdate')
   const lastSignatureKey = 'lastSignature'
   const backupSignatureKey = 'backupSignature'

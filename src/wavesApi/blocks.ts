@@ -15,13 +15,11 @@ export const getLastSolidBlock = async (): Promise<any> => {
   try {
     const data = await axios.get(`https://nodes.wavesnodes.com/blocks/headers/last`)
     if (data.status != 200) {
-      console.log("failed")
       return undefined
     }
     return await getBlock(data.data.reference)
   }
   catch (ex) {
-    console.log(ex)
     return undefined
   }
 }
@@ -42,7 +40,6 @@ export const getNextSolidBlock = async (signature: string): Promise<any> => {
     return undefined
   }
   catch (ex) {
-    console.log(ex)
     return undefined
   }
 }
@@ -51,13 +48,11 @@ export const getBlock = async (signature: string): Promise<any> => {
   try {
     const data = await axios.get(`https://nodes.wavesnodes.com/blocks/signature/${signature}`)
     if (data.status != 200 || data.data.status == 'error') {
-      console.log(data)
       return undefined
     }
 
     return data.data
   } catch (error) {
-    console.log(error)
     return undefined
   }
 }
@@ -66,13 +61,11 @@ export const getNextBlock = async (signature: string): Promise<any> => {
   try {
     const data = await axios.get(`https://nodes.wavesnodes.com/blocks/child/${signature}`)
     if (data.status != 200 || data.data.status == 'error') {
-      console.log(data)
       return undefined
     }
 
     return data.data
   } catch (error) {
-    console.log(error)
     return undefined
   }
 }

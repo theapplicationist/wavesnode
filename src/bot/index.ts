@@ -11,10 +11,16 @@ import { getBalance, wavesAsset } from '../wavesApi/getBalance';
 import { menu, IContext, PageCreationCommands, update, navigate, close, promt } from './pages/framework';
 import { KeyValueStore } from '../generic/KeyValueStore';
 
+function validateEmail(email) {
+  var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
+  return re.test(String(email).toLowerCase())
+}
 
 const db = Database()
 const bot = new TelegramBot('579168769:AAEgCimzCmLq8mMM8ocJlYHJd55LMX9hhMc', { polling: true })
 const kvStore = KeyValueStore('kvstore')
+const confirmationCodes = KeyValueStore('confirmationCodes')
+const birthdayParticipants = KeyValueStore('birthdayParticipants')
 const promts = {
   askWallet: async (context: IContext<any>, response: string) => {
     if (validateAddress(response)) {
@@ -23,8 +29,20 @@ const promts = {
     return promt(promts.askWallet, 'This is not a valid one, try again...')
   },
   askEmail: async (context: IContext<any>, response: string) => {
-    //email confirmation
-    return update
+    const email = response.trim()
+    if (validateEmail(email)) {
+      confirmationCodes.update(context.user.id.toString(), '123456')
+      //email confirmation
+      return promt(promts.aksEmailConfirmation, 'Confirm your email, enter the code please:', email)
+    }
+    return promt(promts.askEmail, 'Invalid email, try again:')
+  },
+  aksEmailConfirmation: async (context: IContext<string>, response: string) => {
+    const code = await confirmationCodes.get(context.user.id.toString())
+    if (code.value == response.trim()) {
+      return update
+    }
+    return promt(promts.aksEmailConfirmation, 'Invalid code, try again:', context.data)
   }
 }
 const pages = {
@@ -36,7 +54,7 @@ const pages = {
   birthday: async (context: IContext<any>, commands: PageCreationCommands) => {
     commands.add(actions.birthdayParticipate, 'Yes!')
     return "Do you want to participate? Blah Blah ..."
-  }
+  },
 }
 const actions = {
   navigateWallets: async (context: IContext<any>) => {
@@ -232,11 +250,9 @@ wn.balances.subscribe(async walletBalances => {
           try {
             const d = parseInt(p.$new.$balance) - parseInt(p.$old.$balance)
             if (d != 0) {
-              change = ` (${d > 0 ? '+' : '-'}${formatAssetBalance(asset, d.toString())})`
+              change = ` (${d > 0 ? '+' : ''}${formatAssetBalance(asset, d.toString())})`
             }
-          } catch {
-
-          }
+          } catch { }
         return formatAsset(asset, p.$new.$balance.toString()) + change
       }))
 
