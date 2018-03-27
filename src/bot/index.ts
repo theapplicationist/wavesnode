@@ -32,8 +32,9 @@ const birthdayParticipants = KeyValueStore('birthdayParticipants')
 const promts = {
   askWallet: async (context: IContext<any>, response: string) => {
     const txt = await text(context.user.id)
-    
     if (validateAddress(response)) {
+      await db.addWallet(response, context.user.id.toString())
+      const isNew = await db.addSubscription(response, context.user.id.toString())
       return promt(promts.askEmail, txt.ask_email_promt)
     }
     return promt(promts.askWallet, txt.ask_wallet_promt_invalid_input)
@@ -57,6 +58,7 @@ const promts = {
       const user = await db.getUser(context.user.id.toString())
       user.email = context.data
       await db.updateUser(user)
+      birthdayParticipants.update(user.id.toString(), true)
       return update
     }
     return promt(promts.aksEmailConfirmation, txt.aks_email_confirmation_promt_invalid_input, context.data)
@@ -71,6 +73,10 @@ const pages = {
   },
   birthday: async (context: IContext<any>, commands: PageCreationCommands) => {
     const txt = await text(context.user.id)
+    const participant = await birthdayParticipants.get(context.user.id.toString(), false)
+    if(participant) {
+      return txt.birthday_page_title_already_participating
+    }
     commands.add(actions.birthdayParticipate, txt.button_birthday_participate)
     return txt.birthday_page_title
   },
@@ -365,7 +371,7 @@ async function main() {
         return
       }
       const address = msg.text
-      db.addWallet(address, user.id)
+      await db.addWallet(address, user.id)
       const isNew = await db.addSubscription(address, user.id)
       if (isNew) {
         wn.addWallet(address)

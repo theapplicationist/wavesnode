@@ -25,6 +25,7 @@ interface IText {
   button_birthday_participate: string
   menu_page_title: string
   birthday_page_title: string
+  birthday_page_title_already_participating: string
   ask_wallet_promt: string
   ask_wallet_promt_invalid_input: string
   ask_email_promt: string
