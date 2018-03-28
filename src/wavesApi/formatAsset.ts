@@ -12,7 +12,7 @@ function trimStart(str: string, symbol) {
 }
 
 export const formatAssetBalance = (asset: IAsset, balance: string): string => {
-
+  balance = balance.toString()
   const sign = balance.startsWith('-1'.toString()[0]) ? '-' : ''
   balance = balance.replace(sign, '')
   const d = new Array(asset.decimals + 1).join('0') + balance

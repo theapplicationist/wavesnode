@@ -1,7 +1,7 @@
 import * as TelegramBot from 'node-telegram-bot-api'
 import { Message, User, CallbackQuery, InlineKeyboardButton, InlineKeyboardMarkup } from 'node-telegram-bot-api'
-import { IDictionary } from '../../generic/IDictionary';
-import { randomBytes } from 'crypto';
+import { IDictionary } from '../../generic/IDictionary'
+import { randomBytes } from 'crypto'
 
 type InlineButton = () => Promise<IButtonResult | IButtonResult[]>
 interface Button {
@@ -82,7 +82,10 @@ export const menu = (bot: TelegramBot,
 
   bot.on('message', async (msg: Message) => {
     if (msg.reply_to_message) {
-      const promtData = (await kvStorage.get<PromtData>(msg.reply_to_message.message_id.toString(), false)).value
+      const kv = await kvStorage.get<PromtData>(msg.reply_to_message.message_id.toString(), false)
+      if (!kv)
+        return
+      const promtData = kv.value
       if (promtData) {
         const result = await promts[promtData.promtId]({ user: msg.from, data: promtData.data }, msg.text)
         result.update = result.update ? 'redraw' : undefined
@@ -95,7 +98,10 @@ export const menu = (bot: TelegramBot,
   })
 
   bot.on('callback_query', async (cq: CallbackQuery) => {
-    const data = (await kvStorage.get<string>(cq.data, false)).value
+    const kv = await kvStorage.get<string>(cq.data, false)
+    if (!kv)
+      return
+    const data = kv.value
     const d = decode<CallbackQueryData>(data)
     const context = { user: cq.from }
 

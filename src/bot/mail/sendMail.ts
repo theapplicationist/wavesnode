@@ -3,16 +3,16 @@ import * as nodemailer from 'nodemailer'
 export async function sendMail(to: string, subject: string, text: string) {
   return new Promise<boolean>((resolve, reject) => {
     const transporter = nodemailer.createTransport({
-      host: 'email-smtp.eu-west-1.amazonaws.com',
-      port: 587,
+      host: '194.226.19.86',
+      port: 25,
       auth: {
-        user: 'AKIAJZHXVEFNG6QNMLQQ',
+        user: 'confirmation@bot.wavesplatform.com',
         pass: 'AtaXU8iqR6y0GAa6m3iFBPGiOGTkzwJhPxU67Pvxn5Ls'
       }
     })
 
     var mailOptions = {
-      from: 'success@simulator.amazonses.com',
+      from: 'confirmation@bot.wavesplatform.com',
       to,
       subject,
       text

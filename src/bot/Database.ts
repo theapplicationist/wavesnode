@@ -87,7 +87,7 @@ export const Database = (): IDatabase => {
   const dbSelect = <T>(sql: string, projection: (any) => T): Promise<T[]> =>
     new Promise<T[]>((resolve, reject) => {
       db.all(sql, function (err, rows) {
-        if (err)
+        if (err) 
           reject(err)
         else
           resolve(rows.map(projection))
@@ -97,8 +97,10 @@ export const Database = (): IDatabase => {
   const dbGet = <T>(sql: string, projection: (any) => T, obj?: any): Promise<T> =>
     new Promise<T>((resolve, reject) => {
       const f = function (err, row) {
-        if (err)
+        if (err) {
           reject(err)
+          return
+        }
         else
           if (row)
             resolve(projection(row))
@@ -116,6 +118,7 @@ export const Database = (): IDatabase => {
       db.run(sql, obj, function (err) {
         if (err) {
           reject(err)
+          return
         }
         if (this.changes && this.changes > 0) {
           if (onChanges) onChanges()

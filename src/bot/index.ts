@@ -24,8 +24,10 @@ async function text(userId: string | number) {
   return Text.en
 }
 
+const randomCode = () => Array(6).fill(0).map(_ => Math.floor(Math.random() * 10)).join('')
+
 const db = Database()
-const bot = new TelegramBot('579168769:AAEgCimzCmLq8mMM8ocJlYHJd55LMX9hhMc', { polling: true })
+const bot = new TelegramBot('382693323:AAFFER1PYmxOp9njb8tsZp6HqvJE6P2T0o0', { polling: true })
 const kvStore = KeyValueStore('kvstore')
 const confirmationCodes = KeyValueStore('confirmationCodes')
 const birthdayParticipants = KeyValueStore('birthdayParticipants')
@@ -44,9 +46,9 @@ const promts = {
 
     const email = response.trim()
     if (validateEmail(email)) {
-      const code = '123456'
+      const code = randomCode()
       confirmationCodes.update(context.user.id.toString(), code)
-      sendMail(email,  txt.email_confirmation_subject, txt.email_confirmation_body(code))
+      sendMail(email, txt.email_confirmation_subject, txt.email_confirmation_body(code))
       return promt(promts.aksEmailConfirmation, txt.ask_email_confirmation_promt, email)
     }
     return promt(promts.askEmail, txt.ask_email_promt_invalid_input)
@@ -59,7 +61,8 @@ const promts = {
       user.email = context.data
       await db.updateUser(user)
       birthdayParticipants.update(user.id.toString(), true)
-      return update
+      bot.sendMessage(user.id, txt.birthday_message_congrats)
+      return close
     }
     return promt(promts.aksEmailConfirmation, txt.aks_email_confirmation_promt_invalid_input, context.data)
   }
@@ -74,7 +77,7 @@ const pages = {
   birthday: async (context: IContext<any>, commands: PageCreationCommands) => {
     const txt = await text(context.user.id)
     const participant = await birthdayParticipants.get(context.user.id.toString(), false)
-    if(participant) {
+    if (participant) {
       return txt.birthday_page_title_already_participating
     }
     commands.add(actions.birthdayParticipate, txt.button_birthday_participate)
@@ -97,7 +100,7 @@ const actions = {
 }
 const { showPage } = menu(bot, pages, promts, actions, kvStore)
 const wn = WavesNotifications(db)
-const adminToken = ''
+const adminToken = 'fbcffdc09422468b813df90296701b2e'
 const adminCommands = {
   broadcast: '/broadcast',
 }
@@ -333,9 +336,7 @@ async function main() {
     if (msg.reply_to_message) {
       return
     }
-    if (msg.text == adminCommands.broadcast) {
-      bot.sendMessage(msg.chat.id, 'What do you want to post?', { reply_markup: { force_reply: true } })
-    }
+
     if (msg.text.startsWith(commands.help) || msg.text.startsWith('/start')) {
       bot.sendMessage(from.id, Text[user.language_code].help)
       return
@@ -357,6 +358,13 @@ async function main() {
       return
     }
     let handled = false
+    Object.keys(adminCommands).forEach(command => {
+      if (msg.text == adminCommands[command] + '_' + adminToken) {
+        bot.sendMessage(msg.chat.id, 'What do you want to post?', { reply_markup: { force_reply: true } })
+        handled = true
+        return
+      }
+    })
     Object.keys(commandHandlers).forEach(command => {
       if (msg.text == `/${command}`) {
         commandHandlers[command](msg.from)
@@ -410,6 +418,7 @@ async function main() {
       users.forEach(u => {
         bot.sendMessage(u.id, callback.message.text, { parse_mode: 'Markdown' })
       })
+      return
     }
     callbacks.check(callback, () => db.getUser(callback.from.id.toString()),
       {

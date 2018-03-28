@@ -26,6 +26,7 @@ interface IText {
   menu_page_title: string
   birthday_page_title: string
   birthday_page_title_already_participating: string
+  birthday_message_congrats: string
   ask_wallet_promt: string
   ask_wallet_promt_invalid_input: string
   ask_email_promt: string
@@ -66,6 +67,8 @@ export const Text: IDictionary<IText> = {
     button_birthday_participate: 'Да, конечно!',
     menu_page_title: 'Меню',
     birthday_page_title: 'Waves празднует свой второй день рождения и мы подготовили что-то особенное...',
+    birthday_page_title_already_participating: 'Ты уже в игре! Поздравляем!',
+    birthday_message_congrats: 'Поздравляем! Ты успешно зарегистрирован!',
     ask_wallet_promt: 'Дай адрес своего кошелька?',
     ask_wallet_promt_invalid_input: 'Адрес не похож на waves, попробуй еще:',
     ask_email_promt: 'Чтобы принять участие нам какже нужен твой email?',
@@ -104,6 +107,8 @@ export const Text: IDictionary<IText> = {
     button_birthday_participate: 'Yes, sure!',
     menu_page_title: 'Menu',
     birthday_page_title: 'Waves will be celebrating it\'s second birthday soon, and we prepared something special for you...',
+    birthday_page_title_already_participating: 'You\'re already in the game, congrats!',
+    birthday_message_congrats: 'Hallelujah! Registration successful!',
     ask_wallet_promt: 'What is your wallet?',
     ask_wallet_promt_invalid_input: 'This is not valid waves address, try again...',
     ask_email_promt: 'In order to participate give us your email please?',
