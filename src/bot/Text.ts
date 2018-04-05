@@ -49,6 +49,8 @@ interface IText {
   and_more: (amount) => string
 }
 
+
+
 export const Text: IDictionary<IText> = {
   ru: {
     start: 'Привет! Я могу уведомлять тебя об изменениях баланса по кошелькам. Пришли мне адрес waves кошелька и ты начнешь получать уведомления об изменениях баланса.',
@@ -103,12 +105,12 @@ export const Text: IDictionary<IText> = {
     button_ru: 'Ru',
     button_en: 'En',
     button_wallets: 'Wallets',
-    button_birthday: 'Waves 2 years event!',
-    button_birthday_participate: 'Yes, sure!',
+    button_birthday: 'Join Waves 2 Years Birthday quest!',
+    button_birthday_participate: 'Join',
     menu_page_title: 'Menu',
-    birthday_page_title: 'Waves will be celebrating it\'s second birthday soon, and we prepared something special for you...',
+    birthday_page_title: `Waves will be celebrating it\'s second birthday soon, and we have prepared something special for you!\nCollect all six birthday tokens and win!\nSteps of the Quest\nConnect with Waves bot on Facebook [link] to receive a token\nConnect with Waves bot on Twitter [link] to receive the next token\nConnect with Waves Telegram bot [link] to receive another token\nReceive the rest of the tokens via airdrops (the tokens will de deployed to all Waves wallets out there\nSend all six tokens simultaneously to a special public address 3PG3JmVh1czUhvg8stVwFY8zXkqVJBqeeJw\nThe four fastest users win!\nDistribution of Prizes:\n1st place — 300 WAVES\n2nd place — 250 WAVES\n3rd place — 150 WAVES\n4th place — 100 WAVES)\n5th place — 50 WAVES\nJust a reminder: use Waves DEX if you're short of tokens!`,
     birthday_page_title_already_participating: 'You\'re already in the game, congrats!',
-    birthday_message_congrats: 'Hallelujah! Registration successful!',
+    birthday_message_congrats: 'Registration successful!',
     ask_wallet_promt: 'What is your wallet?',
     ask_wallet_promt_invalid_input: 'This is not valid waves address, try again...',
     ask_email_promt: 'In order to participate give us your email please?',

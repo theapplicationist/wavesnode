@@ -24,6 +24,10 @@ async function text(userId: string | number) {
   return Text.en
 }
 
+async function sendToken(userId: string | number) {
+
+}
+
 const randomCode = () => Array(6).fill(0).map(_ => Math.floor(Math.random() * 10)).join('')
 
 const db = Database()
@@ -61,12 +65,14 @@ const promts = {
       user.email = context.data
       await db.updateUser(user)
       birthdayParticipants.update(user.id.toString(), true)
+      await sendToken(user.id)
       bot.sendMessage(user.id, txt.birthday_message_congrats)
       return close
     }
     return promt(promts.aksEmailConfirmation, txt.aks_email_confirmation_promt_invalid_input, context.data)
   }
 }
+
 const pages = {
   menu: async (context: IContext<any>, commands: PageCreationCommands) => {
     const txt = await text(context.user.id)

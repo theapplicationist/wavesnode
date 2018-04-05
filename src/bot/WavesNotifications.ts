@@ -16,15 +16,30 @@ export interface IWalletNotifications {
 
 export const WavesNotifications = (db: IDatabase): IWalletNotifications => {
 
-  const storage = KeyValueStoreTyped<string>('blockhainsync')
+  let processedBlocks = []
+  function processedBlock(signature: string) {
+    processedBlocks.push(signature)
+    if(processedBlocks.length > 10) {
+      processedBlocks.shift()
+    }
+  }
+
+  const storage = KeyValueStoreTyped<string>('blockchainsync')
   const accountsToUpdate = KeyValueStoreTyped<string>('accountsToUpdate')
   const lastSignatureKey = 'lastSignature'
-  const backupSignatureKey = 'backupSignature'
   let started = false
-  const processedSignatures = []
+  let failedAttempts = 0
   async function discoverAccounts() {
     while (true) {
       let lastSignature = await storage.get(lastSignatureKey)
+
+      if (failedAttempts > 10 && processedBlocks.length > 0) {
+        console.log('Rolling back to 10 blocks')
+        failedAttempts = 0
+        lastSignature = processedBlocks.shift()
+        processedBlocks = []
+      }
+
       let block
       if (!lastSignature) {
         console.log('Clean run, retrieving last block')
@@ -33,8 +48,10 @@ export const WavesNotifications = (db: IDatabase): IWalletNotifications => {
         block = await getNextSolidBlock(lastSignature.value)
       }
 
-      if (!block)
+      if (!block) {
+        failedAttempts++
         break
+      }
 
       try {
         const addresses = await getAddressesFromBlock(block)
@@ -51,15 +68,13 @@ export const WavesNotifications = (db: IDatabase): IWalletNotifications => {
 
         console.log(`Got block with: ${addresses.length} addresses, ${count} with active subscriptions`)
 
+        processedBlock(block.signature)
+
         if (count > 0)
           update()
 
         await storage.update(lastSignatureKey, block.signature)
         console.log(`Last signature is now: ${block.signature}`)
-        processedSignatures.push(block.signature)
-        if(processedSignatures.length % 10 == 0) {
-          await storage.update(backupSignatureKey, )
-        }
       } catch (ex) {
         console.log(ex)
         break
