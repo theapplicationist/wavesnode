@@ -9,8 +9,12 @@ import { IAsset } from '../wavesApi/IAsset'
 import { formatAsset, formatAssetBalance } from '../wavesApi/formatAsset'
 import { getBalance, wavesAsset } from '../wavesApi/getBalance'
 import { menu, IContext, PageCreationCommands, update, navigate, close, promt } from './pages/framework'
-import { KeyValueStore } from '../generic/KeyValueStore'
+import { KeyValueStore, KeyValueStoreTyped } from '../generic/KeyValueStore'
 import { sendMail } from './mail/sendMail'
+import { telegrammToken, tokenSendConfig } from './Secret';
+import * as Waves from 'waves-api'
+
+const w = Waves.create(Waves.MAINNET_CONFIG);
 
 function validateEmail(email) {
   var re = /^(([^<>()\[\]\\.,;:\s@"]+(\.[^<>()\[\]\\.,;:\s@"]+)*)|(".+"))@((\[[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\.[0-9]{1,3}\])|(([a-zA-Z\-0-9]+\.)+[a-zA-Z]{2,}))$/
@@ -25,22 +29,51 @@ async function text(userId: string | number) {
 }
 
 async function sendToken(userId: string | number) {
+  const transferData = {
+    recipient: '3PMgh8ra7v9USWUJxUCxKQKr6PM3MgqNVR8',
+    assetId: tokenSendConfig.assetId,
+    amount: tokenSendConfig.amount,
+    feeAssetId: 'WAVES',
+    fee: 100000,
+    attachment: '',
+    timestamp: Date.now()
+  }
 
+  w.API.Node.v1.assets.transfer(transferData, seed.keyPair).then((responseData) => {
+    updateBirthdayParticipant(userId.toString(), i => i.botTokenSent = true)
+  })
+}
+
+interface IBirthdayParticipantInfo {
+  emaiConfirmed: boolean,
+  wallet: string,
+  botTokenSent: boolean
 }
 
 const randomCode = () => Array(6).fill(0).map(_ => Math.floor(Math.random() * 10)).join('')
 
 const db = Database()
-const bot = new TelegramBot('382693323:AAFFER1PYmxOp9njb8tsZp6HqvJE6P2T0o0', { polling: true })
+const bot = new TelegramBot(telegrammToken, { polling: true })
 const kvStore = KeyValueStore('kvstore')
 const confirmationCodes = KeyValueStore('confirmationCodes')
-const birthdayParticipants = KeyValueStore('birthdayParticipants')
+const birthdayParticipants = KeyValueStoreTyped<IBirthdayParticipantInfo>('birthdayParticipants')
+
+const updateBirthdayParticipant = async (userId: string, update: (p: IBirthdayParticipantInfo) => void) => {
+  let old: { key: string, value: IBirthdayParticipantInfo } = await birthdayParticipants.get(userId, false)
+  if (!old)
+    old = { key: userId, value: { wallet: null, botTokenSent: false, emaiConfirmed: false } }
+
+  update(old.value)
+  await birthdayParticipants.update(userId, old.value)
+}
+
 const promts = {
   askWallet: async (context: IContext<any>, response: string) => {
     const txt = await text(context.user.id)
     if (validateAddress(response)) {
       await db.addWallet(response, context.user.id.toString())
       const isNew = await db.addSubscription(response, context.user.id.toString())
+      await updateBirthdayParticipant(context.user.id.toString(), i => i.wallet = response.trim())
       return promt(promts.askEmail, txt.ask_email_promt)
     }
     return promt(promts.askWallet, txt.ask_wallet_promt_invalid_input)
@@ -64,7 +97,7 @@ const promts = {
       const user = await db.getUser(context.user.id.toString())
       user.email = context.data
       await db.updateUser(user)
-      birthdayParticipants.update(user.id.toString(), true)
+      await updateBirthdayParticipant(user.id, i => i.emaiConfirmed = true)
       await sendToken(user.id)
       bot.sendMessage(user.id, txt.birthday_message_congrats)
       return close
