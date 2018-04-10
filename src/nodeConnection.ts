@@ -11,7 +11,7 @@ import { setInterval, setTimeout } from 'timers';
 import * as Primitives from './schema/primitives';
 import { IDictionary } from './generic/IDictionary';
 import * as LRU from 'lru-cache'
-import { BufferBe } from './binary/BufferBE';
+import { write, IReadBuffer } from './binary/BufferBE';
 import { IncomingBuffer } from './binary/IncomingBuffer';
 import * as Long from 'long';
 import * as fs from 'fs'
@@ -26,7 +26,7 @@ export interface NodeConnection {
   getPeers: () => Promise<string[]>,
   getSignatures: (lastSignature: string) => Promise<string[]>,
   getBlock: (signature: string) => Promise<Block>
-  onMessage: (handler: (buffer: BufferBe) => void) => void
+  onMessage: (handler: (buffer: IReadBuffer) => void) => void
   //events
   onClose: (handler: () => any) => any
 }
@@ -112,7 +112,7 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
     }
   }
 
-  function tryToFetchMessage(buffer: IncomingBuffer): BufferBe {
+  function tryToFetchMessage(buffer: IncomingBuffer): IReadBuffer {
     const available = buffer.length();
     if (available < 4)
       return
@@ -125,7 +125,7 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
     return messageBuffer
   }
 
-  function messageHandler(buffer: BufferBe) {
+  function messageHandler(buffer: IReadBuffer) {
     const response = deserializeMessage(buffer)
     if (response) {
       if (response.code == MessageCode.GetSignaturesResponse) {
@@ -207,7 +207,7 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
       return connectAndHandshakePromise.startOrReturnExisting(() => {
         client.connect(port, ip, () => {
           //console.log("connected")
-          const buffer = BufferBe()
+          const buffer = write()
           HandshakeSchema.encode(buffer, handshake)
           client.write(buffer.raw())
         })

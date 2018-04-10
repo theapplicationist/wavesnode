@@ -183,7 +183,8 @@ export const menu = (bot: TelegramBot,
     }
 
     const text = await page(context, commands)
-    const replyMarkup = {
+    const replyMarkup: TelegramBot.InlineKeyboardMarkup = {
+
       inline_keyboard: buttons.filter(b => b.length > 0).map(btns => btns.map(v => {
         const c = randomBytes(10).toString('base64')
         kvStorage.update(c, v.callback, true)
@@ -219,7 +220,7 @@ export const menu = (bot: TelegramBot,
   const showPage = async <T>(chatId: string | number, user: User, page: Page<T>, notification: string = '', data: T = undefined) => {
     const { text, replyMarkup } = await buildPage({ user, data }, page)
 
-    const options = {
+    const options: TelegramBot.SendMessageOptions = {
       reply_markup: replyMarkup,
       parse_mode: 'Markdown',
     }

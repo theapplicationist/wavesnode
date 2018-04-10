@@ -1,10 +1,10 @@
 import { encode } from 'punycode';
-import { BufferBe } from '../binary/BufferBE';
+import { write, IReadBuffer, IWriteBuffer } from '../binary/BufferBE';
 import { IDictionary } from '../generic/IDictionary';
 
 export interface ISchema<T> {
-  encode(buffer: BufferBe, obj: T): void
-  decode(buffer: BufferBe): T
+  encode(buffer: IWriteBuffer, obj: T): void
+  decode(buffer: IReadBuffer): T
 }
 
 export interface IMessageSchema<T> extends ISchema<T> {
@@ -17,7 +17,6 @@ export const LoggingSchema = <T>(original: ISchema<T>): ISchema<T> => ({
   encode: (b, o) => {
     original.encode(b, o)
   }, decode: b => {
-    console.log(b.raw(b.position()).toString('hex'))
     const r = original.decode(b)
     return r
   }
@@ -25,14 +24,14 @@ export const LoggingSchema = <T>(original: ISchema<T>): ISchema<T> => ({
 
 export const FallbackSchema: ISchema<Uint8Array> = { encode: (b, o) => { }, decode: b => { return b.readBytes(b.length() - b.position()) } }
 
-export const LeaveBytesFromEnd = (size: number): ISchema<void> => { return { encode: (b, o) => { }, decode: b => { b.seekEnd(); b.seek(-size) } } }
+export const LeaveBytesFromEnd = (size: number): ISchema<void> => { return { encode: (b, o) => { }, decode: b => { b.goToEnd(); b.goTo(-size) } } }
 
 export type SchemaFactory<Self, T> = ((self: Self) => ISchema<T>)
 
 export function createSchema<T>(namedSchemas: IDictionary<ISchema<any> | SchemaFactory<T, any>>): ISchema<T> {
   const keys = Object.keys(namedSchemas)
   return {
-    encode: (buffer: BufferBe, obj) => {
+    encode: (buffer: IWriteBuffer, obj) => {
       keys.forEach(k => {
         let schema = namedSchemas[k]
         if (typeof schema === 'function')
@@ -41,7 +40,7 @@ export function createSchema<T>(namedSchemas: IDictionary<ISchema<any> | SchemaF
         schema.encode(buffer, obj[k])
       })
     },
-    decode: (buffer: BufferBe) => {
+    decode: (buffer: IReadBuffer) => {
       const obj = {}
       keys.forEach(k => {
         let schema = namedSchemas[k]

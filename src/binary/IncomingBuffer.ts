@@ -1,8 +1,8 @@
 import { Buffer } from "buffer";
-import { BufferBe } from "./BufferBE";
+import { write, IReadBuffer, read } from "./BufferBE";
 
 export interface IncomingBuffer {
-  tryGet(length: number): BufferBe
+  tryGet(length: number): IReadBuffer
   write(buffer: Buffer): void
   length(): number
   getInt(offset?: number): number
@@ -48,7 +48,7 @@ export const IncomingBuffer = (): IncomingBuffer => {
       buffers = [r.slice(len, length)]
       length -= len
 
-      return BufferBe(r.slice(0, len))
+      return read(r.slice(0, len))
     },
     getInt(offset?: number) {
       if (!offset) offset = 0

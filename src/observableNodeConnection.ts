@@ -9,7 +9,7 @@ import { setInterval, setTimeout } from 'timers';
 import * as Primitives from './schema/primitives';
 import { IDictionary } from './generic/IDictionary';
 import * as LRU from 'lru-cache'
-import { BufferBe } from './binary/BufferBE';
+import { write, IReadBuffer } from './binary/BufferBE';
 import { IncomingBuffer } from './binary/IncomingBuffer';
 import * as Long from 'long';
 import * as fs from 'fs'
@@ -40,7 +40,7 @@ function tryToHandleHandshake(buffer: IncomingBuffer) {
   }
 }
 
-function tryToFetchMessage(buffer: IncomingBuffer): BufferBe {
+function tryToFetchMessage(buffer: IncomingBuffer): IReadBuffer {
   const available = buffer.length();
   if (available < 4)
     return
@@ -93,7 +93,7 @@ export const ObservableNodeConnection = (ip: string, port: number, networkPrefix
     })
 
     client.connect(port, ip, () => {
-      const buffer = BufferBe()
+      const buffer = write()
 
       const handshake = {
         appName: 'waves' + networkPrefix,

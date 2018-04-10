@@ -3,7 +3,7 @@ import { IDictionary } from '../generic/IDictionary';
 import { ISchema, IMessageSchema } from './ISchema';
 import { Buffer } from 'buffer';
 import { MessageCode, Schema } from './messages';
-import { BufferBe } from '../binary/BufferBE';
+import { write, IReadBuffer } from '../binary/BufferBE';
 
 export function checksum(bytes: Buffer): number {
   var hash = blake2b(32)
@@ -15,14 +15,14 @@ export function checksum(bytes: Buffer): number {
 
 export function serializeMessage<T>(obj: T, code: MessageCode) {
   const schema = Schema(code) as ISchema<T>
-  const buffer = BufferBe()
+  const buffer = write()
   buffer.writeZeros(4 + 4 + 1 + 4 + 4)
   const beforePayload = buffer.position()
   schema.encode(buffer, obj)
   const afterPayload = buffer.position()
   const payloadLength = afterPayload - beforePayload
   const offset = payloadLength == 0 ? 4 : 0
-  buffer.seek(offset + 4)
+  buffer.goTo(offset + 4)
   buffer.writeInt(305419896)
   buffer.writeByte(code)
   buffer.writeInt(payloadLength)
@@ -30,13 +30,13 @@ export function serializeMessage<T>(obj: T, code: MessageCode) {
     const payload = buffer.raw(beforePayload, afterPayload)
     buffer.writeInt(checksum(payload))
   }
-  buffer.seek(offset)
+  buffer.goTo(offset)
   buffer.writeInt(buffer.length() - offset - 4)
 
   return buffer.raw(offset)
 }
 
-export function deserializeMessage(buffer: BufferBe): { code: MessageCode, content: any } {
+export function deserializeMessage(buffer: IReadBuffer): { code: MessageCode, content: any } {
   var length = buffer.readInt()
   var magic = buffer.readInt()
   var code = buffer.readByte() as MessageCode

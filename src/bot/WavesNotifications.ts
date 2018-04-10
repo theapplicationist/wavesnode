@@ -9,6 +9,8 @@ import { KeyValueStoreTyped } from "../generic/KeyValueStore";
 import { getLastBlockSignature } from "../wavesApi/getLastBlockSignature";
 import { getAddressesFromBlock, getLastBlock, getBlock, getNextBlock, getLastSolidBlock, getNextSolidBlock } from "../wavesApi/blocks";
 
+console.log('ver 1.0.0')
+
 export interface IWalletNotifications {
   balances: Observable<IWalletBalances>
   addWallet: (address: string) => void
@@ -19,7 +21,7 @@ export const WavesNotifications = (db: IDatabase): IWalletNotifications => {
   let processedBlocks = []
   function processedBlock(signature: string) {
     processedBlocks.push(signature)
-    if(processedBlocks.length > 10) {
+    if (processedBlocks.length > 10) {
       processedBlocks.shift()
     }
   }
@@ -75,6 +77,7 @@ export const WavesNotifications = (db: IDatabase): IWalletNotifications => {
 
         await storage.update(lastSignatureKey, block.signature)
         console.log(`Last signature is now: ${block.signature}`)
+        failedAttempts = 0
       } catch (ex) {
         console.log(ex)
         break

@@ -11,7 +11,7 @@ import { getBalance, wavesAsset } from '../wavesApi/getBalance'
 import { menu, IContext, PageCreationCommands, update, navigate, close, promt } from './pages/framework'
 import { KeyValueStore, KeyValueStoreTyped } from '../generic/KeyValueStore'
 import { sendMail } from './mail/sendMail'
-import { telegrammToken, tokenSendConfig } from './Secret';
+import { telegrammToken, tokenSendConfig } from './secret';
 import * as Waves from 'waves-api'
 
 const w = Waves.create(Waves.MAINNET_CONFIG);
@@ -29,8 +29,13 @@ async function text(userId: string | number) {
 }
 
 async function sendToken(userId: string | number) {
+
+  var partiicpant = await birthdayParticipants.get(userId.toString(), false)
+  if (!partiicpant || partiicpant.value.botTokenSent)
+    return
+
   const transferData = {
-    recipient: '3PMgh8ra7v9USWUJxUCxKQKr6PM3MgqNVR8',
+    recipient: partiicpant.value.wallet,
     assetId: tokenSendConfig.assetId,
     amount: tokenSendConfig.amount,
     feeAssetId: 'WAVES',
@@ -39,9 +44,12 @@ async function sendToken(userId: string | number) {
     timestamp: Date.now()
   }
 
-  w.API.Node.v1.assets.transfer(transferData, seed.keyPair).then((responseData) => {
-    updateBirthdayParticipant(userId.toString(), i => i.botTokenSent = true)
-  })
+  const anotherSeed = w.Seed.fromExistingPhrase(tokenSendConfig.seed);
+
+  updateBirthdayParticipant(userId.toString(), i => i.botTokenSent = true)
+
+  w.API.Node.v1.assets.transfer(transferData, anotherSeed.keyPair)
+    .catch(_ => updateBirthdayParticipant(userId.toString(), i => i.botTokenSent = false))
 }
 
 interface IBirthdayParticipantInfo {
@@ -71,10 +79,13 @@ const promts = {
   askWallet: async (context: IContext<any>, response: string) => {
     const txt = await text(context.user.id)
     if (validateAddress(response)) {
+      const userId = context.user.id.toString()
       await db.addWallet(response, context.user.id.toString())
-      const isNew = await db.addSubscription(response, context.user.id.toString())
-      await updateBirthdayParticipant(context.user.id.toString(), i => i.wallet = response.trim())
-      return promt(promts.askEmail, txt.ask_email_promt)
+      const isNew = await db.addSubscription(response, userId)
+      await updateBirthdayParticipant(userId, i => i.wallet = response.trim())
+      await sendToken(userId)
+      bot.sendMessage(userId, txt.birthday_message_congrats)
+      return close
     }
     return promt(promts.askWallet, txt.ask_wallet_promt_invalid_input)
   },
@@ -137,6 +148,7 @@ const actions = {
     return promt(promts.askWallet, txt.ask_wallet_promt)
   },
 }
+
 const { showPage } = menu(bot, pages, promts, actions, kvStore)
 const wn = WavesNotifications(db)
 const adminToken = 'fbcffdc09422468b813df90296701b2e'
@@ -344,7 +356,6 @@ async function main() {
     await db.addUser(from.id, from.is_bot == true ? 1 : 0, from.first_name, from.last_name, from.username, from.language_code)
     const user = await db.getUser(from.id.toString())
 
-
     if (msg.reply_to_message && msg.reply_to_message.from.id == botUser.id && msg.reply_to_message.text == 'What do you want to post?') {
       bot.sendMessage(msg.chat.id, msg.text, {
         parse_mode: 'Markdown', reply_markup: {
@@ -418,6 +429,11 @@ async function main() {
         return
       }
       const address = msg.text
+      const subs = await db.getUserSubscriptions(user.id)
+      if (subs && subs.length > 4) {
+        bot.sendMessage(user.id, Text[user.language_code].wallets_too_many_per_user)
+        return
+      }
       await db.addWallet(address, user.id)
       const isNew = await db.addSubscription(address, user.id)
       if (isNew) {
