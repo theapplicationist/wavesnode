@@ -80,7 +80,7 @@ export const NodeConnection = (ip: string, port: number, networkPrefix: string):
 
   const handshake = {
     appName: 'waves' + networkPrefix,
-    version: { major: 0, minor: 9, patch: 0 },
+    version: { major: 0, minor: 10, patch: 3 },
     nodeName: 'name',
     nonce: Long.fromInt(0),
     declaredAddress: [],
