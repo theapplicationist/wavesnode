@@ -14,7 +14,8 @@ gulp
 
 ``` javascript
 ObservableNodeConnection('localhost', 6868, 'W').subscribe(x => {
-  wss.broadcast(JSON.stringify(x));
+  
+  console.log(x)
 
   
 }, 
